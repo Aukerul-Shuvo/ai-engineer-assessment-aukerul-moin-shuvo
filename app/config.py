@@ -123,9 +123,14 @@ class Settings(BaseSettings):
     session_max_turns: int = Field(default=6, description="Exchanges kept per session.")
 
     # ---- Observability ------------------------------------------------------------------
-    otel_exporter_otlp_endpoint: str | None = None
+    otel_exporter_otlp_endpoint: str | None = Field(
+        default=None, description="OTLP collector. Unset disables tracing entirely."
+    )
+    otel_exporter_otlp_protocol: Literal["grpc", "http/protobuf"] = "grpc"
     otel_service_name: str = "ai-engineer-assessment"
-    metrics_enabled: bool = True
+    metrics_enabled: bool = Field(
+        default=True, description="Expose Prometheus metrics at /metrics."
+    )
 
     @field_validator(
         "api_key",

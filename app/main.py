@@ -26,6 +26,8 @@ from app.api.routes import router as health_router
 from app.config import Settings, get_settings
 from app.lifespan import lifespan
 from app.observability.logging import configure_logging
+from app.observability.metrics import configure_metrics
+from app.observability.tracing import configure_tracing
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -62,6 +64,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(build_ask_router(settings, limiter))
     register_exception_handlers(app)
+
+    # Observability last: metrics wraps the app in middleware, tracing instruments the ASGI stack.
+    app.state.ask_metrics = configure_metrics(app, settings)
+    app.state.tracer_provider = configure_tracing(app, settings)
     return app
 
 

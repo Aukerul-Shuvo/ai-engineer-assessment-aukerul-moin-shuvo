@@ -42,6 +42,14 @@ curl -s http://localhost:8000/ask \
 Add `-H "Accept: text/event-stream"` to receive progress events (plan, evidence, answer,
 grounding) followed by a `done` event carrying the same JSON body.
 
+## Observability
+
+Structured JSON logs carry the request id on every line. Prometheus metrics are at
+`GET /metrics`: per-route HTTP counts and latencies, plus `ask_*` metrics for outcome, latency,
+which model provider answered each step, retrieval mode, grounding verdict and sources per answer.
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` to export one OpenTelemetry trace per request, with a span per
+graph node and model call; unset, tracing is fully disabled.
+
 ## Tools over MCP
 
 The same four tools the service uses internally are exposed as an MCP server, for MCP Inspector,

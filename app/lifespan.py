@@ -83,6 +83,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         cache=app.state.response_cache,
         max_question_chars=settings.max_question_chars,
         timeout_s=settings.ask_timeout_s,
+        metrics=getattr(app.state, "ask_metrics", None),
     )
 
     readiness = ReadinessRegistry()
@@ -107,6 +108,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         if app.state.mcp_bridge is not None:
             await app.state.mcp_bridge.__aexit__(None, None, None)
         await app.state.http.aclose()
+        provider = getattr(app.state, "tracer_provider", None)
+        if provider is not None:
+            provider.shutdown()  # flush any spans still in the batch processor
         log.info("shutdown_complete")
 
 

@@ -54,6 +54,7 @@ def scripted_service(
         cache=ResponseCache(ttl_s=60, max_size=16),
         max_question_chars=app.state.settings.max_question_chars,
         timeout_s=timeout_s,
+        metrics=app.state.ask_metrics,
     )
     return model
 

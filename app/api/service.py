@@ -19,7 +19,7 @@ import asyncio
 import json
 import time
 from collections.abc import AsyncIterator
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import structlog
 
@@ -37,6 +37,9 @@ from app.api.schemas import (
 )
 from app.api.sessions import SessionStore
 from app.graph.schemas import Evidence
+
+if TYPE_CHECKING:
+    from app.observability.metrics import AskMetrics
 
 log = structlog.get_logger(__name__)
 
@@ -66,12 +69,14 @@ class AskService:
         cache: ResponseCache,
         max_question_chars: int,
         timeout_s: float,
+        metrics: AskMetrics | None = None,
     ) -> None:
         self._graph = graph
         self._sessions = sessions
         self._cache = cache
         self._max_question_chars = max_question_chars
         self._timeout_s = timeout_s
+        self._metrics = metrics
 
     # ------------------------------------------------------------------ JSON path
     async def ask(self, request: AskRequest, *, request_id: str | None) -> AskResponse:
@@ -81,7 +86,7 @@ class AskService:
 
         if request.session_id is None and (cached := self._cache.get(request.question)):
             log.info("ask_cache_hit")
-            return cached.model_copy(
+            response = cached.model_copy(
                 update={
                     "meta": cached.meta.model_copy(
                         update={
@@ -92,6 +97,8 @@ class AskService:
                     )
                 }
             )
+            self._record(response)
+            return response
 
         try:
             state = await asyncio.wait_for(
@@ -214,6 +221,11 @@ class AskService:
             self._sessions.record(request.session_id, request.question, response.answer)
         if request.session_id is None and response.answer and not response.meta.degraded:
             self._cache.put(request.question, response)
+        self._record(response)
+
+    def _record(self, response: AskResponse) -> None:
+        if self._metrics is not None:
+            self._metrics.record(response)
 
 
 def _source(label: str, item: Evidence) -> Source:

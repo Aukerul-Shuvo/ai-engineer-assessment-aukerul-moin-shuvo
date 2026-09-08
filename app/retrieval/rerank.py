@@ -48,12 +48,16 @@ class FlashRankReranker:
 
         def build() -> Ranker:
             cache_dir.mkdir(parents=True, exist_ok=True)
-            return Ranker(
+            ranker = Ranker(
                 model_name=model_name,
                 cache_dir=str(cache_dir),
                 max_length=max_length,
                 log_level="WARNING",
             )
+            # The ONNX session initialises lazily on first use and costs a few seconds. Pay it
+            # here, at startup, instead of on the first user's request.
+            ranker.rerank(RerankRequest(query="warm up", passages=[{"id": 0, "text": "warm up"}]))
+            return ranker
 
         return cls(await asyncio.to_thread(build), model_name)
 
