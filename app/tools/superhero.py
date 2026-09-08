@@ -40,6 +40,7 @@ from app.api.errors import (
     UpstreamUnavailableError,
 )
 from app.tools.circuit_breaker import CircuitBreaker
+from app.tools.common import ToolError
 
 log = structlog.get_logger(__name__)
 
@@ -102,13 +103,6 @@ class HeroSearchResult(BaseModel):
     count: int
     results: list[HeroSummary]
     note: str | None = None
-
-
-class ToolError(BaseModel):
-    """Model-facing failure. Returned, not raised, so the agent can decide what to do."""
-
-    error: str
-    hint: str | None = None
 
 
 # --------------------------------------------------------------------------- normalizing

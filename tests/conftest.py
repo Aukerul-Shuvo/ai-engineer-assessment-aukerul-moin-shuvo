@@ -21,10 +21,13 @@ from app.main import create_app
 
 @pytest.fixture
 def test_settings() -> Settings:
+    # The real committed corpus in data/ is loaded, which doubles as a check that the committed
+    # artifacts are valid. The reranker is off so no model weights are needed to run tests.
     return Settings(
         _env_file=None,
         environment="test",
         log_json=False,
+        reranker_enabled=False,
         gemini_api_key=SecretStr("test-gemini-key"),
         superhero_api_token=SecretStr("test-superhero-token"),
     )

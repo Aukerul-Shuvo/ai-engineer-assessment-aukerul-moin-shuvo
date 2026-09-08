@@ -6,11 +6,11 @@ import respx
 
 from app.api.errors import UpstreamError, UpstreamRateLimitedError, UpstreamUnavailableError
 from app.tools.circuit_breaker import CircuitBreaker
+from app.tools.common import ToolError
 from app.tools.superhero import (
     Hero,
     HeroSearchResult,
     SuperheroClient,
-    ToolError,
     get_superhero,
     search_superheroes,
 )

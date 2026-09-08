@@ -79,8 +79,16 @@ class Settings(BaseSettings):
     bm25_top_k: int = Field(default=100, description="Candidates from the lexical retriever.")
     dense_top_k: int = Field(default=100, description="Candidates from the dense retriever.")
     rrf_k: int = Field(default=60, description="Reciprocal rank fusion constant, Cormack 2009.")
+    rerank_candidates: int = Field(
+        default=100, description="Fused candidates sent to the cross-encoder."
+    )
     rerank_top_k: int = Field(default=20, description="Passages kept after cross-encoder rerank.")
+    reranker_enabled: bool = True
     reranker_model: str = "ms-marco-MiniLM-L-12-v2"
+    reranker_cache_dir: Path = Path("data/models")
+    reranker_max_length: int = Field(
+        default=512, description="Token budget per query-passage pair in the cross-encoder."
+    )
 
     # ---- Agent graph --------------------------------------------------------------------
     max_agent_steps: int = Field(default=4, description="Tool-call rounds in the superhero agent.")

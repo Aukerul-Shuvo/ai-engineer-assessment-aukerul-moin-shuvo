@@ -23,6 +23,10 @@ from fastapi import FastAPI
 from app import __version__
 from app.api.readiness import ReadinessRegistry
 from app.config import Settings
+from app.llm.embeddings import Embedder, GeminiEmbedder
+from app.retrieval.corpus import CorpusPaths
+from app.retrieval.rerank import FlashRankReranker, Reranker
+from app.retrieval.store import HybridStore
 from app.tools.circuit_breaker import CircuitBreaker
 from app.tools.superhero import SuperheroClient
 
@@ -62,9 +66,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         else None
     )
 
+    # The text corpus. Embedder and reranker are optional; the store degrades without them.
+    app.state.embedder = _build_embedder(settings)
+    app.state.reranker = await _build_reranker(settings)
+    app.state.store = _load_store(settings, app.state.embedder, app.state.reranker)
+
     readiness = ReadinessRegistry()
     readiness.register("secrets", lambda: not settings.missing_runtime_secrets())
     readiness.register("superhero_client", lambda: app.state.superhero is not None)
+    readiness.register("retrieval_index", lambda: app.state.store is not None)
     app.state.readiness = readiness
 
     log.info(
@@ -87,3 +97,49 @@ def _apply_secret_policy(settings: Settings) -> None:
     if settings.environment == "prod":
         raise RuntimeError(f"Refusing to start: missing required secrets {missing}")
     log.warning("missing_secrets", missing=missing, note="starting in degraded mode")
+
+
+def _build_embedder(settings: Settings) -> Embedder | None:
+    if settings.gemini_api_key is None:
+        return None
+    return GeminiEmbedder(
+        api_key=settings.gemini_api_key.get_secret_value(),
+        model=settings.gemini_embedding_model,
+        dimensions=settings.embedding_dimensions,
+        timeout_s=settings.llm_timeout_s,
+        max_retries=settings.llm_max_retries,
+    )
+
+
+async def _build_reranker(settings: Settings) -> Reranker | None:
+    if not settings.reranker_enabled:
+        return None
+    return await FlashRankReranker.create(
+        model_name=settings.reranker_model,
+        cache_dir=settings.reranker_cache_dir,
+        max_length=settings.reranker_max_length,
+    )
+
+
+def _load_store(
+    settings: Settings, embedder: Embedder | None, reranker: Reranker | None
+) -> HybridStore | None:
+    """Load the corpus. A missing corpus is fatal in prod and a warning elsewhere."""
+    try:
+        return HybridStore.load(
+            CorpusPaths(settings.data_dir),
+            embedder=embedder,
+            reranker=reranker,
+            expected_embedding_model=settings.gemini_embedding_model,
+            expected_dimensions=settings.embedding_dimensions,
+            bm25_top_k=settings.bm25_top_k,
+            dense_top_k=settings.dense_top_k,
+            rrf_k=settings.rrf_k,
+            rerank_candidates=settings.rerank_candidates,
+            rerank_top_k=settings.rerank_top_k,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        if settings.environment == "prod":
+            raise RuntimeError(f"Refusing to start: corpus not loadable: {exc}") from exc
+        log.warning("corpus_unavailable", reason=str(exc), data_dir=str(settings.data_dir))
+        return None

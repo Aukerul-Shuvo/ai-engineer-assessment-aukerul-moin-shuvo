@@ -117,12 +117,16 @@ async def build_embeddings(
 def write_embeddings(paths: CorpusPaths, vectors: np.ndarray, meta: EmbeddingsMeta) -> None:
     """Persist the dense index and its metadata side by side."""
     np.save(paths.embeddings, vectors)
-    paths.embeddings_meta.write_text(meta.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    paths.embeddings_meta.write_text(
+        meta.model_dump_json(indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 def write_manifest(paths: CorpusPaths, manifest: BuildManifest) -> None:
-    """Persist build provenance."""
-    paths.manifest.write_text(manifest.model_dump_json(indent=2) + "\n", encoding="utf-8")
+    """Persist build provenance. LF line endings so the committed file is identical on Windows."""
+    paths.manifest.write_text(
+        manifest.model_dump_json(indent=2) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 def read_manifest(paths: CorpusPaths) -> BuildManifest:

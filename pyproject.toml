@@ -123,7 +123,10 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-q --strict-markers"
-markers = ["live: hits real external services and needs API keys"]
+markers = [
+  "live: hits real external services and needs API keys",
+  "slow: downloads model weights on first run",
+]
 filterwarnings = [
   # Third-party: starlette.testclient still imports a deprecated anyio alias. Not our code.
   "ignore:The anyio.abc.BlockingPortal alias is deprecated:DeprecationWarning",
