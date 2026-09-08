@@ -111,6 +111,7 @@ module = [
   "bm25s", "bm25s.*",
   "flashrank", "flashrank.*",
   "Stemmer",
+  "cachetools", "cachetools.*",
   "slowapi", "slowapi.*",
   "prometheus_fastapi_instrumentator", "prometheus_fastapi_instrumentator.*",
   "openinference.*",

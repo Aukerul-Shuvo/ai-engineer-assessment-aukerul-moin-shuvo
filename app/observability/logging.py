@@ -78,3 +78,8 @@ def configure_logging(level: str = "INFO", as_json: bool = False) -> None:
         uv = logging.getLogger(name)
         uv.handlers.clear()
         uv.propagate = True
+
+    # httpx logs every request URL at INFO. The Superhero API token lives in its URL path,
+    # so those lines would leak it. Warnings and errors still come through.
+    for name in ("httpx", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)

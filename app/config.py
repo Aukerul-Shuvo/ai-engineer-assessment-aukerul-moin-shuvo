@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     superhero_timeout_s: float = 10.0
     superhero_cache_ttl_s: int = 600
     superhero_cache_size: int = 512
+    superhero_max_retries: int = 2
+    superhero_breaker_failures: int = Field(
+        default=5, description="Consecutive failures before the circuit breaker opens."
+    )
+    superhero_breaker_recovery_s: float = Field(
+        default=30.0, description="Seconds the breaker stays open before probing again."
+    )
 
     # ---- Retrieval ----------------------------------------------------------------------
     data_dir: Path = Path("data")

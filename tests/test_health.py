@@ -18,7 +18,7 @@ def test_readiness_passes_with_secrets_configured(client: TestClient) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ready"
-    assert body["checks"] == {"secrets": True}
+    assert body["checks"] == {"secrets": True, "superhero_client": True}
 
 
 def test_readiness_names_the_failing_check(app: FastAPI, client: TestClient) -> None:

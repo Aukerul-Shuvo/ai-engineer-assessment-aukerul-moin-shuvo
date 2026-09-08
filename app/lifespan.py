@@ -23,6 +23,8 @@ from fastapi import FastAPI
 from app import __version__
 from app.api.readiness import ReadinessRegistry
 from app.config import Settings
+from app.tools.circuit_breaker import CircuitBreaker
+from app.tools.superhero import SuperheroClient
 
 log = structlog.get_logger(__name__)
 
@@ -41,8 +43,28 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         headers={"User-Agent": f"ai-engineer-assessment/{__version__}"},
     )
 
+    # The superhero source. None when no token is configured; the graph then reports the
+    # source as unavailable instead of failing the whole request.
+    app.state.superhero = (
+        SuperheroClient(
+            app.state.http,
+            base_url=settings.superhero_base_url,
+            token=settings.superhero_api_token.get_secret_value(),
+            cache_ttl_s=settings.superhero_cache_ttl_s,
+            cache_size=settings.superhero_cache_size,
+            max_retries=settings.superhero_max_retries,
+            breaker=CircuitBreaker(
+                failure_threshold=settings.superhero_breaker_failures,
+                recovery_s=settings.superhero_breaker_recovery_s,
+            ),
+        )
+        if settings.superhero_api_token
+        else None
+    )
+
     readiness = ReadinessRegistry()
     readiness.register("secrets", lambda: not settings.missing_runtime_secrets())
+    readiness.register("superhero_client", lambda: app.state.superhero is not None)
     app.state.readiness = readiness
 
     log.info(
