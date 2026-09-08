@@ -39,6 +39,7 @@ def make_synthesize(
         ordered = order_evidence(state.get("plan"), state.get("evidence", []))
         labelled = label_evidence(ordered)
         notes = state.get("notes", [])
+        earlier_reason = state.get("degraded_reason")
 
         if not ordered:
             answer = prompts.NO_EVIDENCE_ANSWER
@@ -47,7 +48,7 @@ def make_synthesize(
             return {"answer": answer, "citations": [], "cited_evidence": []}
 
         if models is None:
-            return _degraded(ordered, "no model provider configured")
+            return _degraded(ordered, "no model provider configured", earlier_reason)
 
         feedback = ""
         if state.get("grounding_issues"):
@@ -63,7 +64,7 @@ def make_synthesize(
         try:
             reply, provider = await call_with_failover(models.chat(), messages)
         except UpstreamUnavailableError as exc:
-            return _degraded(ordered, exc.describe())
+            return _degraded(ordered, exc.describe(), earlier_reason)
 
         text, citations = clean_citations(message_text(reply), {label for label, _ in labelled})
         if notes and not state.get("grounding_issues"):
@@ -95,14 +96,16 @@ def clean_citations(text: str, valid: set[str]) -> tuple[str, list[str]]:
     return cleaned, sorted(used, key=lambda label: int(label[1:]))
 
 
-def _degraded(ordered: list[Evidence], reason: str) -> dict[str, Any]:
+def _degraded(ordered: list[Evidence], reason: str, earlier: str | None) -> dict[str, Any]:
+    """Keep the sources, drop the answer, and add this reason to any earlier one."""
     log.warning("synthesis_degraded", reason=reason)
+    this = f"answer synthesis unavailable ({reason}); returning sources only"
     return {
         "answer": None,
         "citations": [],
         "cited_evidence": ordered,
         "degraded": True,
-        "degraded_reason": f"answer synthesis unavailable ({reason}); returning sources only",
+        "degraded_reason": f"{earlier}; {this}" if earlier else this,
     }
 
 

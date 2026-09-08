@@ -33,6 +33,15 @@ python -m scripts.build_dataset --only-embeddings   # add dense vectors
 
 Interactive docs at http://localhost:8000/docs. Health at `/health/live` and `/health/ready`.
 
+```bash
+curl -s http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "Who won Super Bowl 50, and how strong is Batman?"}'
+```
+
+Add `-H "Accept: text/event-stream"` to receive progress events (plan, evidence, answer,
+grounding) followed by a `done` event carrying the same JSON body.
+
 ## Tools over MCP
 
 The same four tools the service uses internally are exposed as an MCP server, for MCP Inspector,

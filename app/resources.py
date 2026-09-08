@@ -13,9 +13,12 @@ from __future__ import annotations
 
 import httpx
 import structlog
+from langchain_core.tools import BaseTool
 
 from app import __version__
 from app.config import Settings
+from app.graph.mcp_tools import MCPToolBridge, bundled_server_parameters
+from app.graph.tools import build_superhero_tools
 from app.llm.embeddings import Embedder, GeminiEmbedder
 from app.retrieval.corpus import CorpusPaths
 from app.retrieval.rerank import FlashRankReranker, Reranker
@@ -24,6 +27,8 @@ from app.tools.circuit_breaker import CircuitBreaker
 from app.tools.superhero import SuperheroClient
 
 log = structlog.get_logger(__name__)
+
+SUPERHERO_TOOL_NAMES = {"search_superheroes", "get_superhero"}
 
 
 def build_http_client(settings: Settings) -> httpx.AsyncClient:
@@ -79,6 +84,25 @@ async def build_reranker(settings: Settings) -> Reranker | None:
         cache_dir=settings.reranker_cache_dir,
         max_length=settings.reranker_max_length,
     )
+
+
+async def build_agent_tools(
+    settings: Settings, superhero: SuperheroClient | None
+) -> tuple[list[BaseTool], MCPToolBridge | None]:
+    """The superhero tools for the agent, in-process or over MCP per ``tools_backend``.
+
+    Returns the open bridge too when MCP is used, so the caller can close it on shutdown.
+    """
+    if settings.tools_backend == "mcp":
+        target = settings.mcp_server_url or bundled_server_parameters()
+        bridge = MCPToolBridge(target)
+        await bridge.__aenter__()
+        tools = await bridge.load_tools(SUPERHERO_TOOL_NAMES)
+        log.info("agent_tools", backend="mcp", tools=[tool.name for tool in tools])
+        return tools, bridge
+    tools = build_superhero_tools(superhero) if superhero is not None else []
+    log.info("agent_tools", backend="inprocess", tools=[tool.name for tool in tools])
+    return tools, None
 
 
 def load_store(

@@ -1,6 +1,4 @@
-"""HTTP routes.
-
-Two health endpoints exist from the first commit:
+"""Health routes.
 
 * ``GET /health/live``  returns 200 while the process runs. Orchestrators use it to restart a
   dead process.
@@ -8,8 +6,7 @@ Two health endpoints exist from the first commit:
   or 503 listing the checks that failed. Load balancers use it to decide whether to route
   traffic here.
 
-``POST /ask`` is added in a later step and lives in this module too, so the entire HTTP surface
-of the service is visible in one file.
+``POST /ask`` lives in ``app.api.ask`` because its router is built from settings.
 """
 
 from __future__ import annotations

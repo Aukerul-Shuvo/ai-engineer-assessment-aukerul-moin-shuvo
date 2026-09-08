@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     )
     rate_limit: str = Field(default="30/minute", description="Per-client limit on POST /ask.")
     max_question_chars: int = 1000
+    ask_timeout_s: float = Field(default=90.0, description="Deadline for answering one question.")
     cors_origins: list[str] = Field(default_factory=list)
 
     # ---- Model providers ----------------------------------------------------------------
@@ -119,6 +120,7 @@ class Settings(BaseSettings):
     response_cache_ttl_s: int = 300
     response_cache_size: int = 1024
     session_ttl_s: int = 1800
+    session_max_turns: int = Field(default=6, description="Exchanges kept per session.")
 
     # ---- Observability ------------------------------------------------------------------
     otel_exporter_otlp_endpoint: str | None = None

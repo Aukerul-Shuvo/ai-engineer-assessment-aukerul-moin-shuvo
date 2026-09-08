@@ -1,25 +1,28 @@
 """Application entry point.
 
 ``create_app`` assembles the FastAPI application: settings, logging, middleware, routes, error
-handlers, and the lifespan that owns shared resources. The module-level ``app`` is what uvicorn
-serves::
+handlers, rate limiting, and the lifespan that owns shared resources. The module-level ``app`` is
+what uvicorn serves::
 
     uvicorn app.main:app --reload
 
-Everything expensive is created once in the lifespan and reached through ``app.state``.
-Nothing is rebuilt per request. Responses are serialised straight from Pydantic models, which
-FastAPI 0.141 does natively and faster than a custom JSON response class.
+Everything expensive is created once in the lifespan and reached through ``app.state``. Nothing
+is rebuilt per request. Responses are serialised straight from Pydantic models, which FastAPI
+0.141 does natively and faster than a custom JSON response class.
 """
 
 from __future__ import annotations
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
 
 from app import __version__
+from app.api.ask import build_ask_router
 from app.api.errors import register_exception_handlers
 from app.api.middleware import RequestContextMiddleware
-from app.api.routes import router
+from app.api.ratelimit import build_limiter, rate_limit_exceeded
+from app.api.routes import router as health_router
 from app.config import Settings, get_settings
 from app.lifespan import lifespan
 from app.observability.logging import configure_logging
@@ -52,7 +55,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             allow_headers=["*"],
         )
 
-    app.include_router(router)
+    limiter = build_limiter(settings)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded)
+
+    app.include_router(health_router)
+    app.include_router(build_ask_router(settings, limiter))
     register_exception_handlers(app)
     return app
 

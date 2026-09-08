@@ -57,6 +57,20 @@ class UnauthorizedError(AppError):
     error_type = "unauthorized"
 
 
+class ValidationFailedError(AppError):
+    """Input passed schema validation but breaks a configured limit."""
+
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    error_type = "validation_error"
+
+
+class RequestTimeoutError(AppError):
+    """Answering took longer than the configured budget."""
+
+    status_code = status.HTTP_504_GATEWAY_TIMEOUT
+    error_type = "timeout"
+
+
 class NotReadyError(AppError):
     """The service is up but a dependency it needs is not available yet."""
 

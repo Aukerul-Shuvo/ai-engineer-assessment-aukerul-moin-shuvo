@@ -22,6 +22,7 @@ def test_readiness_passes_with_secrets_configured(client: TestClient) -> None:
         "secrets": True,
         "superhero_client": True,
         "retrieval_index": True,
+        "llm_configured": True,
     }
 
 
