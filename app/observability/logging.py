@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
+from typing import IO, Any
 
 import orjson
 import structlog
@@ -26,12 +26,16 @@ def _orjson_dumps(value: Any, **_: Any) -> str:
     return orjson.dumps(value, default=str).decode()
 
 
-def configure_logging(level: str = "INFO", as_json: bool = False) -> None:
+def configure_logging(
+    level: str = "INFO", as_json: bool = False, stream: IO[str] | None = None
+) -> None:
     """Install the structlog pipeline on the root logger.
 
     Args:
         level: Minimum level name, for example ``"INFO"``.
         as_json: Emit one JSON object per line instead of coloured console output.
+        stream: Where lines go. Defaults to stdout. The MCP stdio server passes stderr because
+            stdout is its protocol channel.
     """
     min_level = logging.getLevelNamesMapping()[level.upper()]
 
@@ -63,7 +67,7 @@ def configure_logging(level: str = "INFO", as_json: bool = False) -> None:
         cache_logger_on_first_use=False,
     )
 
-    handler = logging.StreamHandler(sys.stdout)
+    handler = logging.StreamHandler(stream or sys.stdout)
     handler.setFormatter(
         structlog.stdlib.ProcessorFormatter(foreign_pre_chain=shared, processors=final)
     )

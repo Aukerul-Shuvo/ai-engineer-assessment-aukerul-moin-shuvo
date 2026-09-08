@@ -33,6 +33,17 @@ python -m scripts.build_dataset --only-embeddings   # add dense vectors
 
 Interactive docs at http://localhost:8000/docs. Health at `/health/live` and `/health/ready`.
 
+## Tools over MCP
+
+The same four tools the service uses internally are exposed as an MCP server, for MCP Inspector,
+Claude Desktop or another agent:
+
+```bash
+python -m mcp_server.server                                  # stdio
+python -m mcp_server.server --transport streamable-http      # http://127.0.0.1:3001/mcp
+npx @modelcontextprotocol/inspector python -m mcp_server.server
+```
+
 ## Test
 
 ```bash

@@ -104,7 +104,7 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
-files = ["app", "scripts"]
+files = ["app", "scripts", "mcp_server"]
 
 [[tool.mypy.overrides]]
 module = [
