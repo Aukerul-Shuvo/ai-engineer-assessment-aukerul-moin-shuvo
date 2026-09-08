@@ -9,12 +9,76 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Sequence
+from typing import Any
 
 import numpy as np
+from langchain_core.callbacks import CallbackManagerForLLMRun
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage
+from langchain_core.outputs import ChatGeneration, ChatResult
+from langchain_core.runnables import Runnable, RunnableLambda
+from pydantic import BaseModel, Field
 
 from app.llm.embeddings import unit_normalize
 
 _WORD = re.compile(r"\w+")
+
+
+class ScriptedChatModel(BaseChatModel):
+    """A chat model that replays a script.
+
+    ``script`` feeds plain and tool-calling turns as ``AIMessage`` objects. ``structured_script``
+    feeds structured-output calls as Pydantic models or dicts; when it is empty, structured calls
+    fall back to ``script``. Two queues matter because parallel graph branches interleave chat
+    and structured calls in a non-deterministic global order, while the order within each kind
+    is fixed by the graph. Nodes and agents are tested against exact model behaviour, offline.
+    """
+
+    script: list[Any] = Field(default_factory=list)
+    structured_script: list[Any] = Field(default_factory=list)
+    calls: list[Any] = Field(default_factory=list)
+    bound_tools: list[Any] = Field(default_factory=list)
+    fail_with: Exception | None = None
+
+    model_config = {"arbitrary_types_allowed": True}
+
+    @property
+    def _llm_type(self) -> str:
+        return "scripted"
+
+    def _next(self, structured: bool = False) -> Any:
+        if self.fail_with is not None:
+            raise self.fail_with
+        queue = self.structured_script if structured and self.structured_script else self.script
+        if not queue:
+            raise RuntimeError("ScriptedChatModel: script exhausted")
+        return queue.pop(0)
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        self.calls.append(messages)
+        item = self._next()
+        message = item if isinstance(item, AIMessage) else AIMessage(content=str(item))
+        return ChatResult(generations=[ChatGeneration(message=message)])
+
+    def bind_tools(self, tools: Sequence[Any], **kwargs: Any) -> Runnable[Any, AIMessage]:
+        self.bound_tools = list(tools)
+        return self
+
+    def with_structured_output(self, schema: Any, **kwargs: Any) -> Runnable[Any, Any]:
+        def produce(payload: Any) -> Any:
+            self.calls.append(payload)
+            item = self._next(structured=True)
+            if isinstance(item, BaseModel):
+                return item
+            return schema.model_validate(item)
+
+        return RunnableLambda(produce)
 
 
 class FakeEmbedder:

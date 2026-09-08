@@ -32,10 +32,9 @@ dependencies = [
   "langchain-core>=1.6",
   "langchain-google-genai>=4.4",
   "langchain-groq>=1.1",
-  "langgraph-checkpoint-sqlite>=3.1",
-  # Tools over MCP
+  # Tools over MCP. langchain-mcp-adapters is deliberately absent: its latest release targets
+  # mcp 1.x and fails to import against mcp 2.x, so app/graph/mcp_tools.py bridges directly.
   "mcp>=2.1",
-  "langchain-mcp-adapters>=0.3",
   # Retrieval
   "bm25s>=0.3",
   "PyStemmer>=2.2",

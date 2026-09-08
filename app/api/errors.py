@@ -36,6 +36,12 @@ class AppError(Exception):
         self.message = message
         self.details = details or []
 
+    def describe(self) -> str:
+        """Message plus details, for logs and degraded-mode reasons."""
+        if not self.details:
+            return self.message
+        return f"{self.message}: {'; '.join(str(item) for item in self.details)}"
+
 
 class BadRequestError(AppError):
     """The request was well-formed but cannot be served as asked."""

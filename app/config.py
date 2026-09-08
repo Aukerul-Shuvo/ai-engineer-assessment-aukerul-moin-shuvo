@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 768
     groq_api_key: SecretStr | None = Field(default=None, description="Failover provider.")
     groq_model: str = "openai/gpt-oss-120b"
+    llm_temperature: float = Field(
+        default=0.0, description="Planning and grading want determinism."
+    )
     llm_timeout_s: float = 30.0
     llm_max_retries: int = 2
 
@@ -91,9 +94,16 @@ class Settings(BaseSettings):
     )
 
     # ---- Agent graph --------------------------------------------------------------------
-    max_agent_steps: int = Field(default=4, description="Tool-call rounds in the superhero agent.")
+    max_agent_steps: int = Field(
+        default=4, description="Tool calls allowed per superhero sub-query."
+    )
     max_query_rewrites: int = 1
     max_regenerations: int = Field(default=1, description="Retries when grounding check fails.")
+    max_sub_queries: int = Field(default=6, description="Cap on sub-queries the planner may emit.")
+    grade_top_k: int = Field(default=10, description="Passages shown to the relevance grader.")
+    evidence_per_sub_query: int = Field(
+        default=6, description="Passages kept per dataset sub-query."
+    )
 
     # ---- Tools --------------------------------------------------------------------------
     tools_backend: ToolsBackend = Field(
