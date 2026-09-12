@@ -43,8 +43,13 @@ def make_check_grounding(
             raw, provider = await call_with_failover(
                 models.structured(GroundingVerdict), [HumanMessage(prompt)]
             )
-        except UpstreamUnavailableError:
-            return {"grounded": None, "grounding_issues": []}
+        except UpstreamUnavailableError as exc:
+            # The answer still ships; the response says the check did not run and why.
+            return {
+                "grounded": None,
+                "grounding_issues": [],
+                "notes": [f"grounding check unavailable ({exc.describe()})"],
+            }
 
         verdict = raw if isinstance(raw, GroundingVerdict) else GroundingVerdict.model_validate(raw)
         regenerations = state.get("regenerations", 0)

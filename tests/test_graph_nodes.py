@@ -18,7 +18,8 @@ from app.llm.providers import ChatModels, Provider
 from app.tools.circuit_breaker import CircuitBreaker
 from app.tools.superhero import SuperheroClient
 from tests.fakes import FakeEmbedder, ScriptedChatModel
-from tests.test_store import build_corpus, load
+from tests.fakes import build_test_corpus as build_corpus
+from tests.fakes import load_test_store as load
 from tests.test_superhero import BASE, BATMEN, TOKEN
 
 TITLES = ["Super_Bowl_50", "Nikola_Tesla", "Oxygen"]
@@ -139,13 +140,15 @@ async def test_retrieve_documents_keeps_graded_passages_with_provenance(tmp_path
     item = out["evidence"][0]
     assert item.kind == "dataset"
     assert item.url == "https://en.wikipedia.org/wiki/Super_Bowl_50"
-    assert item.retrieval["found_by"] == ["bm25", "dense"]
+    assert item.retrieval["dense_rank"] == 1
+    assert item.retrieval["rerank_score"] is None
     assert out["providers"] == ["grade:fake"]
     assert out["notes"] == []
 
 
 async def test_retrieve_documents_rewrites_once_when_insufficient(tmp_path: Path) -> None:
-    store = load(await build_corpus(tmp_path, embedder=None), embedder=None)
+    embedder = FakeEmbedder(16)
+    store = load(await build_corpus(tmp_path, embedder=embedder), embedder=embedder)
     models, model = models_from(
         [
             RetrievalGrade(relevant_ids=[], sufficient=False),
@@ -170,12 +173,13 @@ async def test_retrieve_documents_rewrites_once_when_insufficient(tmp_path: Path
 async def test_retrieve_documents_without_models_returns_top_passages_ungraded(
     tmp_path: Path,
 ) -> None:
-    store = load(await build_corpus(tmp_path, embedder=None), embedder=None)
+    embedder = FakeEmbedder(16)
+    store = load(await build_corpus(tmp_path, embedder=embedder), embedder=embedder)
     node = make_retrieve_documents(
         None, store, grade_top_k=4, evidence_per_sub_query=2, max_query_rewrites=1
     )
 
-    # Both Super Bowl paragraphs mention the Panthers; the cap keeps two of the BM25 hits.
+    # Both Super Bowl paragraphs rank above the rest; the cap keeps the top two.
     out = await node(branch(SubQuery(id="q1", text="Panthers Super Bowl", source="dataset")))
 
     assert len(out["evidence"]) == 2
@@ -335,7 +339,7 @@ async def test_synthesize_without_evidence_answers_honestly_without_a_model_call
             "question": "q",
             "plan": None,
             "evidence": [],
-            "notes": ["q1: the superhero source is not configured"],
+            "caveats": ["the superhero source is not configured"],
         }
     )
 
@@ -394,3 +398,28 @@ def test_graph_dependencies_defaults_match_settings_defaults() -> None:
 
     assert (deps.max_agent_steps, deps.max_query_rewrites, deps.max_regenerations) == (4, 1, 1)
     assert (deps.max_sub_queries, deps.grade_top_k, deps.evidence_per_sub_query) == (6, 10, 6)
+
+
+async def test_routine_notes_stay_out_of_the_answer_but_caveats_are_appended() -> None:
+    """A rewritten query is the operator's business; a missing source is the reader's."""
+    models, _ = models_from(["The Denver Broncos won [S1]."])
+    node = make_synthesize(models)
+
+    out = await node(
+        {
+            "question": "Who won and how strong is Batman?",
+            "plan": None,
+            "evidence": [evidence("q1", "Super Bowl 50", "The Broncos won.")],
+            "notes": [
+                "q1: query rewritten once",
+                "q1: relevance grading unavailable, kept the top passages ungraded",
+            ],
+            "caveats": ["the superhero source is not configured"],
+        }
+    )
+
+    assert out["answer"] == (
+        "The Denver Broncos won [S1]. Note: the superhero source is not configured."
+    )
+    assert "rewritten" not in out["answer"]
+    assert "grading" not in out["answer"]

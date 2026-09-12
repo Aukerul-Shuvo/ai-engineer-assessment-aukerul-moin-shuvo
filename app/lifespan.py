@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         environment=settings.environment,
         tools_backend=settings.tools_backend,
         providers=[p.name for p in app.state.models.providers] if app.state.models else [],
-        dense_retrieval=bool(app.state.store and app.state.store.dense_enabled),
+        searchable=bool(app.state.store and app.state.store.searchable),
         reranker=app.state.reranker.model_id if app.state.reranker else None,
     )
     try:

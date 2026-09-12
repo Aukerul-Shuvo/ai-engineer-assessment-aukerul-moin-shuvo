@@ -1,1 +1,1 @@
-"""The RAG store: corpus files, BM25 and dense indexes, rank fusion, reranking."""
+"""The retrieval layer: corpus files, the dense vector index, cross-encoder reranking."""

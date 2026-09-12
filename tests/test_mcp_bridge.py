@@ -2,17 +2,18 @@ import json
 from pathlib import Path
 
 from app.graph.mcp_tools import MCPToolBridge, bundled_server_parameters
-from app.retrieval.store import HybridStore
+from app.retrieval.store import VectorStore
 from mcp_server.server import create_server
 from tests.fakes import FakeEmbedder
-from tests.test_store import build_corpus, load
+from tests.fakes import build_test_corpus as build_corpus
+from tests.fakes import load_test_store as load
 
 
 async def test_bridge_exposes_server_tools_as_langchain_tools_over_one_session(
     tmp_path: Path,
 ) -> None:
     embedder = FakeEmbedder(16)
-    store: HybridStore = load(await build_corpus(tmp_path, embedder=embedder), embedder=embedder)
+    store: VectorStore = load(await build_corpus(tmp_path, embedder=embedder), embedder=embedder)
     server = create_server(superhero=None, store=store)
 
     async with MCPToolBridge(server) as bridge:
@@ -20,7 +21,9 @@ async def test_bridge_exposes_server_tools_as_langchain_tools_over_one_session(
         by_name = {tool.name: tool for tool in tools}
 
         catalog = json.loads(await by_name["list_documents"].ainvoke({}))
-        hits = json.loads(await by_name["search_documents"].ainvoke({"query": "Denver", "k": 1}))
+        hits = json.loads(
+            await by_name["search_documents"].ainvoke({"query": "Denver Broncos", "k": 1})
+        )
         unconfigured = json.loads(
             await (await bridge.load_tools({"search_superheroes"}))[0].ainvoke({"name": "batman"})
         )

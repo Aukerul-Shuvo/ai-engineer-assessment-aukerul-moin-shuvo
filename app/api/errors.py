@@ -43,13 +43,6 @@ class AppError(Exception):
         return f"{self.message}: {'; '.join(str(item) for item in self.details)}"
 
 
-class BadRequestError(AppError):
-    """The request was well-formed but cannot be served as asked."""
-
-    status_code = status.HTTP_400_BAD_REQUEST
-    error_type = "bad_request"
-
-
 class UnauthorizedError(AppError):
     """A required API key is missing or wrong."""
 
@@ -69,13 +62,6 @@ class RequestTimeoutError(AppError):
 
     status_code = status.HTTP_504_GATEWAY_TIMEOUT
     error_type = "timeout"
-
-
-class NotReadyError(AppError):
-    """The service is up but a dependency it needs is not available yet."""
-
-    status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    error_type = "not_ready"
 
 
 class UpstreamError(AppError):

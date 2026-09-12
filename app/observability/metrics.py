@@ -6,7 +6,7 @@ prometheus-fastapi-instrumentator, plus this service's own view of how questions
 * ``ask_requests_total{outcome}``        answered, cached, degraded or out_of_scope
 * ``ask_latency_seconds``                end-to-end time per answered question
 * ``ask_provider_calls_total{step,provider}``  which model answered which graph step
-* ``ask_retrieval_mode_total{mode}``     hybrid or bm25_only
+* ``ask_retrieval_mode_total{mode}``     dense_reranked, dense or unavailable
 * ``ask_grounding_total{result}``        supported, unsupported or unchecked
 * ``ask_sources_per_response``           how much evidence each answer carried
 

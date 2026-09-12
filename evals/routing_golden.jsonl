@@ -1,0 +1,30 @@
+{"question": "Which NFL team represented the AFC at Super Bowl 50?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "Who did Nikola Tesla ask for money to finish the Wardenclyffe transmitter?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "What is the atomic number of oxygen?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "When did the Black Death reach Europe?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "Which countries does the Rhine flow through?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "Who founded the University of Chicago?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "What is the capital of Kenya?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "What powers does the Scottish Parliament have?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "What is a prime number?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "How did Genghis Khan die?", "intent": "answerable", "sources": ["dataset"], "min_sub_queries": 1}
+{"question": "How strong is Superman?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Who is faster, the Flash or Quicksilver?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "What is Batman's real name?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Which publisher owns Wolverine?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Tell me about Wonder Woman's power stats.", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Is Thanos good or bad?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Where was Iron Man born?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Who are Black Widow's relatives?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Compare the durability of Hulk and Thor.", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "What is Spider-Man's first appearance?", "intent": "answerable", "sources": ["superhero"], "min_sub_queries": 1}
+{"question": "Who won Super Bowl 50, and how strong is Batman?", "intent": "answerable", "sources": ["dataset", "superhero"], "min_sub_queries": 2}
+{"question": "What is oxygen's atomic number, and what is Superman's intelligence stat?", "intent": "answerable", "sources": ["dataset", "superhero"], "min_sub_queries": 2}
+{"question": "The Amazon rainforest is mostly in which country, and name a superhero from that country.", "intent": "answerable", "sources": ["dataset", "superhero"], "min_sub_queries": 2}
+{"question": "How long is the Rhine, and how tall is Batman?", "intent": "answerable", "sources": ["dataset", "superhero"], "min_sub_queries": 2}
+{"question": "Who was Martin Luther, and is there a superhero called Luther?", "intent": "answerable", "sources": ["dataset", "superhero"], "min_sub_queries": 2}
+{"question": "What did Nikola Tesla invent, and is there a superhero named Tesla?", "intent": "answerable", "sources": ["dataset", "superhero"], "min_sub_queries": 2}
+{"question": "What's the weather in Doha today?", "intent": "out_of_scope", "sources": [], "min_sub_queries": 0}
+{"question": "Write me a Python function that sorts a list.", "intent": "out_of_scope", "sources": [], "min_sub_queries": 0}
+{"question": "What is Apple's stock price right now?", "intent": "out_of_scope", "sources": [], "min_sub_queries": 0}
+{"question": "Hello! How are you today?", "intent": "chitchat", "sources": [], "min_sub_queries": 0}

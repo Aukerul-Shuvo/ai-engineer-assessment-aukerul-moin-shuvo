@@ -23,7 +23,7 @@ def test_metrics_endpoint_exposes_http_and_ask_metrics(app: FastAPI, client: Tes
     assert 'ask_requests_total{outcome="answered"} 1.0' in body
     assert 'ask_requests_total{outcome="cached"} 1.0' in body
     assert 'ask_provider_calls_total{provider="fake",step="plan"} 1.0' in body
-    assert 'ask_retrieval_mode_total{mode="bm25_only"} 1.0' in body
+    assert 'ask_retrieval_mode_total{mode="dense"} 1.0' in body
     assert 'ask_grounding_total{result="supported"} 1.0' in body
     assert "ask_latency_seconds_bucket" in body
     assert 'http_requests_total{handler="/ask",method="POST",status="200"} 2.0' in body
@@ -45,12 +45,12 @@ def test_ask_metrics_classify_outcomes() -> None:
         meta = ResponseMeta(
             request_id="r",
             session_id=None,
-            providers=["plan:gemini", "synth:groq"],
+            providers=["plan:gemini/flash-lite", "synth:gemini/flash"],
             latency_ms=1500,
             grounded=True,
             degraded=False,
             degraded_reason=None,
-            retrieval_mode="hybrid",
+            retrieval_mode="dense_reranked",
             cached=False,
             notes=[],
         )
@@ -78,7 +78,9 @@ def test_ask_metrics_classify_outcomes() -> None:
     assert count(metrics.requests, outcome="degraded") == 1
     assert count(metrics.requests, outcome="out_of_scope") == 1
     assert count(metrics.requests, outcome="cached") == 1
-    assert count(metrics.provider_calls, step="synth", provider="groq") == 3, "cached skipped"
+    assert count(metrics.provider_calls, step="synth", provider="gemini/flash") == 3, (
+        "cached skipped"
+    )
     assert count(metrics.grounding, result="supported") == 3
 
 

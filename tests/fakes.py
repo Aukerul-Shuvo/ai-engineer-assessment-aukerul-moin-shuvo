@@ -7,8 +7,10 @@ can be injected wherever the real one is expected.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Sequence
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -20,6 +22,9 @@ from langchain_core.runnables import Runnable, RunnableLambda
 from pydantic import BaseModel, Field
 
 from app.llm.embeddings import unit_normalize
+from app.retrieval.build import run_build
+from app.retrieval.corpus import CorpusPaths
+from app.retrieval.store import VectorStore
 
 _WORD = re.compile(r"\w+")
 
@@ -115,3 +120,89 @@ class FakeEmbedder:
             slot = int(hashlib.md5(word.encode(), usedforsecurity=False).hexdigest(), 16)
             vector[slot % self._dimensions] += 1.0
         return vector
+
+
+# ---------------------------------------------------------------- a corpus for tests
+TEST_DIMENSIONS = 16
+"""Vector width used by every test corpus; matches ``FakeEmbedder``'s default model id."""
+
+TEST_EMBEDDING_MODEL = "fake-embedder"
+
+TEST_CORPUS: dict[str, Any] = {
+    "version": "1.1",
+    "data": [
+        {
+            "title": "Super_Bowl_50",
+            "paragraphs": [
+                {
+                    "context": (
+                        "The AFC champion Denver Broncos defeated the NFC champion Carolina "
+                        "Panthers 24-10 to earn their third Super Bowl title."
+                    ),
+                    "qas": [
+                        {
+                            "id": "q-broncos",
+                            "question": "Which team won Super Bowl 50?",
+                            "answers": [{"text": "Denver Broncos"}, {"text": "Denver Broncos"}],
+                        }
+                    ],
+                },
+                {
+                    "context": (
+                        "The Panthers finished the regular season with a 15-1 record and "
+                        "quarterback Cam Newton was named MVP."
+                    ),
+                    "qas": [],
+                },
+            ],
+        },
+        {
+            "title": "Nikola_Tesla",
+            "paragraphs": [
+                {
+                    "context": (
+                        "Tesla later approached Morgan to ask for more funds to build a more "
+                        "powerful transmitter at Wardenclyffe."
+                    ),
+                    "qas": [],
+                }
+            ],
+        },
+        {
+            "title": "Oxygen",
+            "paragraphs": [
+                {
+                    "context": "Oxygen is a chemical element with symbol O and atomic number 8.",
+                    "qas": [],
+                }
+            ],
+        },
+    ],
+}
+
+
+async def build_test_corpus(root: Path, embedder: FakeEmbedder | None) -> CorpusPaths:
+    """Write ``TEST_CORPUS`` and its indexes under ``root``, exactly as the build script would.
+
+    With ``embedder=None`` the vectors are skipped, which is how the unsearchable-corpus paths
+    are tested.
+    """
+    source = root / "dev.json"
+    source.write_text(json.dumps(TEST_CORPUS), encoding="utf-8")
+    paths = CorpusPaths(root / "data")
+    await run_build(source=str(source), paths=paths, embedder=embedder)
+    return paths
+
+
+def load_test_store(
+    paths: CorpusPaths, embedder: FakeEmbedder | None, reranker: object | None = None, **kw: int
+) -> VectorStore:
+    """The store over a test corpus, verified against the fake embedder's model and width."""
+    return VectorStore.load(
+        paths,
+        embedder=embedder,
+        reranker=reranker,  # type: ignore[arg-type]
+        expected_embedding_model=TEST_EMBEDDING_MODEL,
+        expected_dimensions=TEST_DIMENSIONS,
+        **kw,
+    )

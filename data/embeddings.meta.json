@@ -1,0 +1,10 @@
+{
+  "model": "gemini-embedding-001",
+  "dimensions": 768,
+  "count": 888,
+  "dtype": "float16",
+  "normalized": true,
+  "task_type": "RETRIEVAL_DOCUMENT",
+  "paragraphs_sha256": "814e7cb822b6b24c4e73fc37fee0f7816262a6a8706441fbd7e5b4ae9601b849",
+  "created_at": "2026-09-08T21:55:03+00:00"
+}

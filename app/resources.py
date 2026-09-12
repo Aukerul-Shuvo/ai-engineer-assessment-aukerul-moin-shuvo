@@ -22,7 +22,7 @@ from app.graph.tools import build_superhero_tools
 from app.llm.embeddings import Embedder, GeminiEmbedder
 from app.retrieval.corpus import CorpusPaths
 from app.retrieval.rerank import FlashRankReranker, Reranker
-from app.retrieval.store import HybridStore
+from app.retrieval.store import VectorStore
 from app.tools.circuit_breaker import CircuitBreaker
 from app.tools.superhero import SuperheroClient
 
@@ -63,7 +63,11 @@ def build_superhero_client(settings: Settings, http: httpx.AsyncClient) -> Super
 
 
 def build_embedder(settings: Settings) -> Embedder | None:
-    """Gemini embeddings, or ``None`` without a Gemini key."""
+    """Gemini embeddings, or ``None`` without a Gemini key.
+
+    Retrieval is semantic only, so without this the corpus cannot be searched at all and
+    every search says so. Readiness reports it before a request ever arrives.
+    """
     if settings.gemini_api_key is None:
         return None
     return GeminiEmbedder(
@@ -107,18 +111,16 @@ async def build_agent_tools(
 
 def load_store(
     settings: Settings, embedder: Embedder | None, reranker: Reranker | None
-) -> HybridStore | None:
+) -> VectorStore | None:
     """Load the corpus. A missing corpus is fatal in prod and a warning elsewhere."""
     try:
-        return HybridStore.load(
+        return VectorStore.load(
             CorpusPaths(settings.data_dir),
             embedder=embedder,
             reranker=reranker,
             expected_embedding_model=settings.gemini_embedding_model,
             expected_dimensions=settings.embedding_dimensions,
-            bm25_top_k=settings.bm25_top_k,
             dense_top_k=settings.dense_top_k,
-            rrf_k=settings.rrf_k,
             rerank_candidates=settings.rerank_candidates,
             rerank_top_k=settings.rerank_top_k,
         )

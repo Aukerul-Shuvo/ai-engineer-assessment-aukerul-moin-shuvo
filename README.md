@@ -1,9 +1,14 @@
 # AI Engineer Assessment
 
 A FastAPI chatbot with one endpoint, `POST /ask`. It answers natural-language questions from a
-text corpus (Wikipedia paragraphs from the SQuAD dataset) and from the Superhero API, decides
-by itself which source a question needs, sometimes both, and returns every answer with the
-sources it came from.
+text corpus and from the Superhero API, decides by itself which source a question needs,
+sometimes both, and returns every answer with the sources it came from.
+
+The corpus is the first 20 articles of the SQuAD v1.1 development set: 888 Wikipedia paragraphs,
+retrieved by embedding and reranked by a cross-encoder. Routing, retrieval, the superhero agent
+and the grounding check run as a LangGraph graph over Gemini.
+
+![architecture](screenshots/architecture.png)
 
 ## Setup
 
@@ -14,8 +19,14 @@ python -m venv .venv
 .venv\Scripts\activate          # Windows
 source .venv/bin/activate       # macOS / Linux
 pip install -e ".[dev]"
-cp .env.example .env            # then fill in the keys
+cp .env.example .env            # then fill in the two keys
 ```
+
+Two keys: `GEMINI_API_KEY` (aistudio.google.com, free; both the models and the embeddings) and
+`SUPERHERO_API_TOKEN` (superheroapi.com). Retrieval embeds the question, so the Gemini key is
+what makes the corpus searchable at all. Without the keys the service still starts and every
+endpoint works, but answers come back `degraded` with the reason, and `/health/ready` names the
+dependency that is missing.
 
 ## Run
 
@@ -23,15 +34,10 @@ cp .env.example .env            # then fill in the keys
 uvicorn app.main:app --reload
 ```
 
-The corpus and indexes in `data/` are committed, so nothing needs building to run. To rebuild
-them from the SQuAD source, or to add dense vectors once `GEMINI_API_KEY` is set:
+The corpus and its vectors are committed, so nothing needs building. Interactive docs at
+http://localhost:8000/docs, health at `/health/live` and `/health/ready`.
 
-```bash
-python -m scripts.build_dataset --skip-embeddings   # corpus + BM25, no key needed
-python -m scripts.build_dataset --only-embeddings   # add dense vectors
-```
-
-Interactive docs at http://localhost:8000/docs. Health at `/health/live` and `/health/ready`.
+![POST /ask](screenshots/01-endpoint.png)
 
 ```bash
 curl -s http://localhost:8000/ask \
@@ -39,27 +45,25 @@ curl -s http://localhost:8000/ask \
   -d '{"question": "Who won Super Bowl 50, and how strong is Batman?"}'
 ```
 
-Add `-H "Accept: text/event-stream"` to receive progress events (plan, evidence, answer,
-grounding) followed by a `done` event carrying the same JSON body.
+Add `-H "Accept: text/event-stream"` for progress events instead of one JSON body, and a
+`session_id` to keep follow-up questions in context. A full response is in
+[docs/example-response.json](docs/example-response.json).
 
-## Observability
+With Docker: `docker compose up --build`, or `docker compose --profile observability up --build`
+to add Jaeger and Prometheus.
 
-Structured JSON logs carry the request id on every line. Prometheus metrics are at
-`GET /metrics`: per-route HTTP counts and latencies, plus `ask_*` metrics for outcome, latency,
-which model provider answered each step, retrieval mode, grounding verdict and sources per answer.
-Set `OTEL_EXPORTER_OTLP_ENDPOINT` to export one OpenTelemetry trace per request, with a span per
-graph node and model call; unset, tracing is fully disabled.
+## What a response contains
 
-## Tools over MCP
+Every source carries a human-readable reference, an openable URL, the verbatim excerpt used, and
+for corpus hits an exact locator into `data/paragraphs.jsonl` plus the retrieval provenance.
+Sources are attached by code from what was actually retrieved; the model only cites labels.
 
-The same four tools the service uses internally are exposed as an MCP server, for MCP Inspector,
-Claude Desktop or another agent:
+![answer with sources](screenshots/02-answer-with-sources.png)
 
-```bash
-python -m mcp_server.server                                  # stdio
-python -m mcp_server.server --transport streamable-http      # http://127.0.0.1:3001/mcp
-npx @modelcontextprotocol/inspector python -m mcp_server.server
-```
+The metadata says which model answered each step, whether the answer passed the grounding check,
+which retrieval mode ran, and any degradation with its reason.
+
+![trace and grounding](screenshots/03-trace-and-grounding.png)
 
 ## Test
 
@@ -68,3 +72,7 @@ pytest
 ruff check . && ruff format --check .
 mypy
 ```
+
+Retrieval is measured against SQuAD's gold paragraph labels: `python -m evals.retrieval --limit
+300 --rerank --pool 50`. The numbers that set the retrieval parameters, including why the lexical
+index was measured and then deleted, are in [evals/RESULTS.md](evals/RESULTS.md).

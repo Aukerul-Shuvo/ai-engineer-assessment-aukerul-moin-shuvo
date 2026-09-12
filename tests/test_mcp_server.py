@@ -7,19 +7,20 @@ import respx
 from mcp import Client
 
 from app.config import Settings
-from app.retrieval.store import HybridStore
+from app.retrieval.store import VectorStore
 from app.tools.circuit_breaker import CircuitBreaker
 from app.tools.superhero import SuperheroClient
 from mcp_server.server import SERVER_NAME, build_server_from_settings, create_server
 from tests.fakes import FakeEmbedder
-from tests.test_store import build_corpus, load
+from tests.fakes import build_test_corpus as build_corpus
+from tests.fakes import load_test_store as load
 from tests.test_superhero import BASE, BATMEN, TOKEN
 
 EXPECTED_TOOLS = {"search_superheroes", "get_superhero", "search_documents", "list_documents"}
 
 
 @pytest.fixture
-async def store(tmp_path: Path) -> HybridStore:
+async def store(tmp_path: Path) -> VectorStore:
     embedder = FakeEmbedder(16)
     return load(await build_corpus(tmp_path, embedder=embedder), embedder=embedder)
 
@@ -37,7 +38,7 @@ async def superhero() -> AsyncIterator[SuperheroClient]:
         )
 
 
-async def test_exposes_four_read_only_tools_with_typed_schemas(store: HybridStore) -> None:
+async def test_exposes_four_read_only_tools_with_typed_schemas(store: VectorStore) -> None:
     server = create_server(superhero=None, store=store)
 
     async with Client(server) as client:
@@ -62,7 +63,7 @@ async def test_exposes_four_read_only_tools_with_typed_schemas(store: HybridStor
     assert docs.output_schema is not None, "union return types still produce a typed schema"
 
 
-async def test_document_tools_return_structured_results(store: HybridStore) -> None:
+async def test_document_tools_return_structured_results(store: VectorStore) -> None:
     server = create_server(superhero=None, store=store)
 
     async with Client(server) as client:
@@ -76,14 +77,14 @@ async def test_document_tools_return_structured_results(store: HybridStore) -> N
     assert search.is_error is False
     assert search.structured_content is not None
     result = search.structured_content["result"]
-    assert result["mode"] == "hybrid"
+    assert result["mode"] == "dense"
     assert len(result["results"]) == 2
     assert result["results"][0]["paragraph_id"] == "super-bowl-50-000"
 
 
 @respx.mock
 async def test_superhero_tools_call_the_api_through_the_same_client(
-    store: HybridStore, superhero: SuperheroClient
+    store: VectorStore, superhero: SuperheroClient
 ) -> None:
     respx.get(f"{BASE}/{TOKEN}/search/batman").mock(
         return_value=httpx.Response(200, json={"response": "success", "results": BATMEN})
@@ -120,7 +121,7 @@ async def test_unconfigured_sources_answer_with_tool_errors_not_protocol_errors(
     assert "build_dataset" in docs.structured_content["result"]["hint"]
 
 
-async def test_invalid_arguments_are_rejected_before_the_tool_runs(store: HybridStore) -> None:
+async def test_invalid_arguments_are_rejected_before_the_tool_runs(store: VectorStore) -> None:
     server = create_server(superhero=None, store=store)
 
     async with Client(server) as client:
@@ -138,4 +139,4 @@ async def test_build_from_settings_wires_the_real_corpus(test_settings: Settings
 
     assert tools == EXPECTED_TOOLS
     assert catalog.structured_content is not None
-    assert catalog.structured_content["result"]["count"] == 48, "the committed SQuAD corpus"
+    assert catalog.structured_content["result"]["count"] == 3, "the test corpus"

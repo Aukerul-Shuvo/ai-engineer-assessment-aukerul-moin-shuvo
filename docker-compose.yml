@@ -1,0 +1,45 @@
+# Local run.
+#   docker compose up --build                          API alone, dev mode: starts without keys, answers degraded
+#   docker compose --profile observability up --build  adds an OpenTelemetry collector, Jaeger and Prometheus
+# For the observability profile set OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317 in .env.
+# Set ENVIRONMENT=prod to make the API refuse to start without its secrets, as the bare image does.
+
+services:
+  api:
+    build: .
+    image: ai-engineer-assessment:local
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-dev}
+      LOG_JSON: "true"
+    restart: unless-stopped
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    profiles: [observability]
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+      - ./deploy/otel-collector.yaml:/etc/otelcol-contrib/config.yaml:ro
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    depends_on:
+      - jaeger
+
+  jaeger:
+    image: jaegertracing/jaeger:2.20.0
+    profiles: [observability]
+    ports:
+      - "16686:16686"
+
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    profiles: [observability]
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"

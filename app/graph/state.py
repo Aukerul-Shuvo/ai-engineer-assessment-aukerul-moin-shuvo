@@ -27,7 +27,13 @@ class GraphState(TypedDict, total=False):
     wave: int
 
     evidence: Annotated[list[Evidence], operator.add]
+    # Two audiences. ``notes`` is the operator's record of everything unusual in this run and
+    # is reported in the response metadata. ``caveats`` is the subset the person reading the
+    # answer needs to know, because it explains a gap in what could be answered; only those
+    # are appended to the answer text. "Query rewritten once" is a note, "the superhero source
+    # is not configured" is a caveat.
     notes: Annotated[list[str], operator.add]
+    caveats: Annotated[list[str], operator.add]
     providers: Annotated[list[str], operator.add]
 
     answer: str | None

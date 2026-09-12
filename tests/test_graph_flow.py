@@ -22,25 +22,26 @@ from app.graph.schemas import (
 )
 from app.graph.tools import build_superhero_tools
 from app.llm.providers import ChatModels, Provider
-from app.retrieval.store import HybridStore
+from app.retrieval.store import VectorStore
 from app.tools.circuit_breaker import CircuitBreaker
 from app.tools.superhero import SuperheroClient
 from tests.fakes import FakeEmbedder, ScriptedChatModel
-from tests.test_store import build_corpus, load
+from tests.fakes import build_test_corpus as build_corpus
+from tests.fakes import load_test_store as load
 from tests.test_superhero import BASE, BATMEN, TOKEN
 
 TITLES = ["Super_Bowl_50", "Nikola_Tesla", "Oxygen"]
 
 
 @pytest.fixture
-async def store(tmp_path: Path) -> HybridStore:
+async def store(tmp_path: Path) -> VectorStore:
     embedder = FakeEmbedder(16)
     return load(await build_corpus(tmp_path, embedder=embedder), embedder=embedder)
 
 
 def make_deps(
     *,
-    store: HybridStore | None,
+    store: VectorStore | None,
     structured: list[object],
     chat: list[AIMessage],
     tools: list[BaseTool] | None = None,
@@ -63,7 +64,7 @@ def dataset_plan(*texts: str) -> QueryPlan:
 
 
 async def test_out_of_scope_question_gets_a_direct_reply_and_no_sources(
-    store: HybridStore,
+    store: VectorStore,
 ) -> None:
     deps, model = make_deps(
         store=store,
@@ -81,7 +82,7 @@ async def test_out_of_scope_question_gets_a_direct_reply_and_no_sources(
 
 
 @respx.mock
-async def test_compound_question_runs_both_branches_and_cites_both(store: HybridStore) -> None:
+async def test_compound_question_runs_both_branches_and_cites_both(store: VectorStore) -> None:
     respx.get(f"{BASE}/{TOKEN}/search/batman").mock(
         return_value=httpx.Response(200, json={"response": "success", "results": BATMEN})
     )
@@ -134,7 +135,7 @@ async def test_compound_question_runs_both_branches_and_cites_both(store: Hybrid
     assert not model.structured_script and not model.script, "every scripted call was used"
 
 
-async def test_grounding_failure_regenerates_once_with_feedback(store: HybridStore) -> None:
+async def test_grounding_failure_regenerates_once_with_feedback(store: VectorStore) -> None:
     deps, model = make_deps(
         store=store,
         structured=[
@@ -158,7 +159,7 @@ async def test_grounding_failure_regenerates_once_with_feedback(store: HybridSto
     assert "30-10" in second_synthesis_prompt, "the regeneration saw the grounding feedback"
 
 
-async def test_dependent_sub_query_runs_in_a_second_wave(store: HybridStore) -> None:
+async def test_dependent_sub_query_runs_in_a_second_wave(store: VectorStore) -> None:
     deps, _ = make_deps(
         store=store,
         structured=[
@@ -194,7 +195,7 @@ async def test_dependent_sub_query_runs_in_a_second_wave(store: HybridStore) -> 
     assert {e.sub_query_id for e in final["evidence"]} == {"q1", "q2"}
 
 
-async def test_degraded_run_without_any_model_still_returns_sources(store: HybridStore) -> None:
+async def test_degraded_run_without_any_model_still_returns_sources(store: VectorStore) -> None:
     deps = GraphDependencies(models=None, store=store, document_titles=TITLES)
 
     final = await build_graph(deps).ainvoke({"question": "Denver Broncos"})

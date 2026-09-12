@@ -1,0 +1,139 @@
+{
+    "answer": "The American Football Conference champion Denver Broncos defeated the National Football Conference champion Carolina Panthers 24–10 to win Super Bowl 50 [S1]. \n\nRegarding Batman's strength:\n* Terry McGinnis has a strength stat of 40 [S2].\n* Bruce Wayne has a strength stat of 26 [S3].\n* Dick Grayson (Batman II) has a strength stat of 11 [S4].",
+    "sources": [
+      {
+        "id": "S1",
+        "type": "dataset",
+        "title": "Super Bowl 50",
+        "reference": "SQuAD v1.1 dev - article 'Super_Bowl_50' - paragraph 0",
+        "url": "https://en.wikipedia.org/wiki/Super_Bowl_50",
+        "excerpt": "Super Bowl 50 was an American football game to determine the champion of the National Football League (NFL) for the 2015 season. The American Football Conference (AFC) champion Denver Broncos defeated the National Football Conference (NFC) champion Carolina Panthers 24–10 to earn their third Super Bowl title. The game was played on February 7, 2016, at Levi's Stadium in the San Francisco Bay Area at Santa Clara, California. As this was the 50th Super Bowl, the league emphasized the \"golden anniversary\" with various gold-themed initiatives, as well as temporarily suspending the tradition of naming each Super Bowl game with Roman numerals (under which the game would have been known as \"Super Bowl L\"), so that the logo could prominently feature the Arabic numerals 50.",
+        "locator": {
+          "file": "data/paragraphs.jsonl",
+          "paragraph_id": "super-bowl-50-000"
+        },
+        "retrieval": {
+          "dense_rank": 1,
+          "dense_score": 0.796,
+          "rerank_score": 0.9998254179954529
+        },
+        "data": null
+      },
+      {
+        "id": "S2",
+        "type": "superhero",
+        "title": "Batman (Terry McGinnis)",
+        "reference": "Superhero API - character id 69 - GET /api/{token}/69",
+        "url": "https://superheroapi.com/api/{token}/69",
+        "excerpt": "Batman, real name Terry McGinnis, published by DC Comics, alignment good. Power stats: intelligence 81, strength 40, speed 29, durability 55, power 63, combat 90.",
+        "locator": null,
+        "retrieval": null,
+        "data": {
+          "id": "69",
+          "name": "Batman",
+          "full_name": "Terry McGinnis",
+          "publisher": "DC Comics",
+          "alignment": "good",
+          "powerstats": {
+            "intelligence": 81,
+            "strength": 40,
+            "speed": 29,
+            "durability": 55,
+            "power": 63,
+            "combat": 90
+          }
+        }
+      },
+      {
+        "id": "S3",
+        "type": "superhero",
+        "title": "Batman (Bruce Wayne)",
+        "reference": "Superhero API - character id 70 - GET /api/{token}/70",
+        "url": "https://superheroapi.com/api/{token}/70",
+        "excerpt": "Batman, real name Bruce Wayne, published by DC Comics, alignment good. Power stats: intelligence 100, strength 26, speed 27, durability 50, power 47, combat 100.",
+        "locator": null,
+        "retrieval": null,
+        "data": {
+          "id": "70",
+          "name": "Batman",
+          "full_name": "Bruce Wayne",
+          "publisher": "DC Comics",
+          "alignment": "good",
+          "powerstats": {
+            "intelligence": 100,
+            "strength": 26,
+            "speed": 27,
+            "durability": 50,
+            "power": 47,
+            "combat": 100
+          }
+        }
+      },
+      {
+        "id": "S4",
+        "type": "superhero",
+        "title": "Batman II (Dick Grayson)",
+        "reference": "Superhero API - character id 71 - GET /api/{token}/71",
+        "url": "https://superheroapi.com/api/{token}/71",
+        "excerpt": "Batman II, real name Dick Grayson, published by Nightwing, alignment good. Power stats: intelligence 88, strength 11, speed 33, durability 28, power 36, combat 100.",
+        "locator": null,
+        "retrieval": null,
+        "data": {
+          "id": "71",
+          "name": "Batman II",
+          "full_name": "Dick Grayson",
+          "publisher": "Nightwing",
+          "alignment": "good",
+          "powerstats": {
+            "intelligence": 88,
+            "strength": 11,
+            "speed": 33,
+            "durability": 28,
+            "power": 36,
+            "combat": 100
+          }
+        }
+      }
+    ],
+    "citations": [
+      "S1",
+      "S2",
+      "S3",
+      "S4"
+    ],
+    "plan": {
+      "intent": "answerable",
+      "sub_queries": [
+        {
+          "id": "q1",
+          "text": "Who won Super Bowl 50?",
+          "source": "dataset",
+          "hero_name": null
+        },
+        {
+          "id": "q2",
+          "text": "How strong is Batman?",
+          "source": "superhero",
+          "hero_name": "Batman"
+        }
+      ]
+    },
+    "meta": {
+      "request_id": "3051ff215f79403cbc49e55868dbfbd4",
+      "session_id": "hHi2syQJscpsu5DQaHUm9F89NQh7kgBDOt8uNfroVoeV8W",
+      "providers": [
+        "plan:gemini/gemini-3.5-flash-lite",
+        "grade:gemini/gemini-3.5-flash-lite",
+        "agent:gemini/gemini-3.5-flash-lite",
+        "synth:gemini/gemini-3.5-flash-lite",
+        "ground:gemini/gemini-3.5-flash-lite"
+      ],
+      "latency_ms": 6752,
+      "grounded": true,
+      "degraded": false,
+      "degraded_reason": null,
+      "retrieval_mode": "dense_reranked",
+      "cached": false,
+      "notes": []
+    }
+  }

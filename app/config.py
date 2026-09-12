@@ -53,16 +53,65 @@ class Settings(BaseSettings):
 
     # ---- Model providers ----------------------------------------------------------------
     gemini_api_key: SecretStr | None = Field(default=None, description="Primary provider.")
-    gemini_model: str = "gemini-3.5-flash"
+    # Free-tier quotas measured on the AI Studio dashboard (2026-09-09): Flash Lite models allow
+    # 15 requests/min and 500/day, the larger Flash models 5/min and 20/day, metered per model.
+    # One question costs four to nine calls, so the lite models lead and every model in the
+    # chain is its own budget.
+    gemini_model: str = "gemini-3.5-flash-lite"
+    gemini_fallback_models: str | None = Field(
+        default="gemini-3.1-flash-lite,gemini-3.5-flash",
+        description="Comma-separated Gemini models tried in order after the primary.",
+    )
+    gemini_model_rpm: str | None = Field(
+        default="gemini-3.5-flash-lite:15,gemini-3.1-flash-lite:15,gemini-3.5-flash:5",
+        description="Per-model requests-per-minute budgets as model:rpm pairs. A model without "
+        "one is guarded only by failover on 429.",
+    )
+    gemini_thinking_level: str | None = Field(
+        default="minimal",
+        description="Gemini 3 thinking level for every call; the graph's calls are short "
+        "structured judgements, and default thinking made one take seven seconds.",
+    )
     gemini_embedding_model: str = "gemini-embedding-001"
     embedding_dimensions: int = 768
-    groq_api_key: SecretStr | None = Field(default=None, description="Failover provider.")
-    groq_model: str = "openai/gpt-oss-120b"
+    embed_texts_per_minute: int = Field(
+        default=100,
+        description="The free tier counts each embedded text as a request: 100/min, 1,000/day. "
+        "The corpus build paces itself to this and resumes across days.",
+    )
     llm_temperature: float = Field(
         default=0.0, description="Planning and grading want determinism."
     )
-    llm_timeout_s: float = 30.0
-    llm_max_retries: int = 2
+    llm_timeout_s: float = Field(
+        default=15.0,
+        description="Deadline for one model call. Well inside ask_timeout_s divided by the calls "
+        "a question makes, so one degraded provider fails over instead of eating the request.",
+    )
+    llm_max_retries: int = Field(
+        default=1,
+        description="SDK-level retries per call; failover to the next model is the "
+        "main recovery, so this stays low.",
+    )
+
+    @property
+    def gemini_model_chain(self) -> list[str]:
+        """Primary model followed by the fallbacks, without duplicates."""
+        chain = [self.gemini_model]
+        for item in (self.gemini_fallback_models or "").split(","):
+            name = item.strip()
+            if name and name not in chain:
+                chain.append(name)
+        return chain
+
+    @property
+    def gemini_rpm_budgets(self) -> dict[str, int]:
+        """Requests-per-minute budget per Gemini model, from ``gemini_model_rpm``."""
+        budgets: dict[str, int] = {}
+        for item in (self.gemini_model_rpm or "").split(","):
+            if ":" in item:
+                name, rpm = item.rsplit(":", 1)
+                budgets[name.strip()] = int(rpm)
+        return budgets
 
     # ---- Superhero API ------------------------------------------------------------------
     superhero_api_token: SecretStr | None = None
@@ -80,18 +129,22 @@ class Settings(BaseSettings):
 
     # ---- Retrieval ----------------------------------------------------------------------
     data_dir: Path = Path("data")
-    bm25_top_k: int = Field(default=100, description="Candidates from the lexical retriever.")
-    dense_top_k: int = Field(default=100, description="Candidates from the dense retriever.")
-    rrf_k: int = Field(default=60, description="Reciprocal rank fusion constant, Cormack 2009.")
+    dense_top_k: int = Field(
+        default=100, description="Nearest paragraphs taken from the vector index per query."
+    )
+    # Depth comes from the measured recall curve and rerank cost table in evals/RESULTS.md:
+    # reranking the top 50 keeps recall@1 and MRR at the depth-100 level for 63% less CPU.
     rerank_candidates: int = Field(
-        default=100, description="Fused candidates sent to the cross-encoder."
+        default=50, description="Nearest candidates sent to the cross-encoder."
     )
     rerank_top_k: int = Field(default=20, description="Passages kept after cross-encoder rerank.")
     reranker_enabled: bool = True
     reranker_model: str = "ms-marco-MiniLM-L-12-v2"
     reranker_cache_dir: Path = Path("data/models")
     reranker_max_length: int = Field(
-        default=512, description="Token budget per query-passage pair in the cross-encoder."
+        default=512,
+        description="Token budget per query-passage pair in the cross-encoder. 256 halves the "
+        "cost at a measured one point of recall@1 (evals/RESULTS.md).",
     )
 
     # ---- Agent graph --------------------------------------------------------------------
@@ -135,7 +188,6 @@ class Settings(BaseSettings):
     @field_validator(
         "api_key",
         "gemini_api_key",
-        "groq_api_key",
         "superhero_api_token",
         "mcp_server_url",
         "otel_exporter_otlp_endpoint",
@@ -155,14 +207,14 @@ class Settings(BaseSettings):
 
     @property
     def has_llm_provider(self) -> bool:
-        """True when at least one model provider key is configured."""
-        return bool(self.gemini_api_key or self.groq_api_key)
+        """True when a model provider key is configured."""
+        return self.gemini_api_key is not None
 
     def missing_runtime_secrets(self) -> list[str]:
         """Names of the secrets the service needs to do useful work but does not have."""
         missing: list[str] = []
         if not self.has_llm_provider:
-            missing.append("GEMINI_API_KEY or GROQ_API_KEY")
+            missing.append("GEMINI_API_KEY")
         if not self.superhero_api_token:
             missing.append("SUPERHERO_API_TOKEN")
         return missing

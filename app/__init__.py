@@ -6,7 +6,7 @@ The package layout mirrors the architecture, so the folder names tell the story:
                      request-id middleware, readiness checks
 * ``graph``          the LangGraph agent: query analysis, the retrieval branch, the superhero
                      branch, synthesis and the grounding check
-* ``retrieval``      the hybrid RAG store: BM25 plus dense vectors, rank fusion, reranking
+* ``retrieval``      the corpus, its dense vector index, and cross-encoder reranking
 * ``tools``          the two knowledge sources exposed as plain callable functions
 * ``llm``            model providers, failover between them, embeddings
 * ``observability``  structured logging, tracing, metrics

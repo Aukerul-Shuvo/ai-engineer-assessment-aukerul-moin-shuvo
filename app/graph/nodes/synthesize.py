@@ -38,13 +38,13 @@ def make_synthesize(
     async def synthesize(state: GraphState) -> dict[str, Any]:
         ordered = order_evidence(state.get("plan"), state.get("evidence", []))
         labelled = label_evidence(ordered)
-        notes = state.get("notes", [])
+        caveats = state.get("caveats", [])
         earlier_reason = state.get("degraded_reason")
 
         if not ordered:
             answer = prompts.NO_EVIDENCE_ANSWER
-            if notes:
-                answer += " " + _notes_sentence(notes)
+            if caveats:
+                answer += " " + _caveat_sentence(caveats)
             return {"answer": answer, "citations": [], "cited_evidence": []}
 
         if models is None:
@@ -67,8 +67,8 @@ def make_synthesize(
             return _degraded(ordered, exc.describe(), earlier_reason)
 
         text, citations = clean_citations(message_text(reply), {label for label, _ in labelled})
-        if notes and not state.get("grounding_issues"):
-            text = text.rstrip() + " " + _notes_sentence(notes)
+        if caveats and not state.get("grounding_issues"):
+            text = text.rstrip() + " " + _caveat_sentence(caveats)
         return {
             "answer": text,
             "citations": citations,
@@ -109,6 +109,7 @@ def _degraded(ordered: list[Evidence], reason: str, earlier: str | None) -> dict
     }
 
 
-def _notes_sentence(notes: Sequence[str]) -> str:
-    unique = list(dict.fromkeys(note.split(": ", 1)[-1] for note in notes))
+def _caveat_sentence(caveats: Sequence[str]) -> str:
+    """One sentence telling the reader what could not be answered, appended to the answer."""
+    unique = list(dict.fromkeys(caveat.strip().rstrip(".") for caveat in caveats if caveat.strip()))
     return "Note: " + "; ".join(unique) + "."

@@ -31,3 +31,5 @@ evals/reports/
 .idea/
 .DS_Store
 Thumbs.db
+# Quota-paced embedding build progress; the finished embeddings.npy is committed instead.
+data/embeddings.partial.*

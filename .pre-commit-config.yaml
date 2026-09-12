@@ -1,5 +1,5 @@
 # Install once with: pip install pre-commit && pre-commit install
-# Runs the fast checks on every commit. mypy and pytest run in CI.
+# Runs the fast checks on every commit; mypy and pytest are run by hand, see the README.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

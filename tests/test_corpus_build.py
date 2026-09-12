@@ -5,7 +5,6 @@ import numpy as np
 
 from app.retrieval.build import (
     build_embeddings,
-    build_lexical_index,
     parse_squad,
     read_manifest,
     run_build,
@@ -22,7 +21,6 @@ from app.retrieval.corpus import (
     read_jsonl,
     wikipedia_url,
 )
-from app.retrieval.lexical import LexicalIndex
 from tests.fakes import FakeEmbedder
 
 MINI_SQUAD = {
@@ -126,25 +124,6 @@ def test_indexed_text_prepends_the_title_header() -> None:
     assert indexed_text(paragraphs[2]).startswith("Nikola Tesla. Nikola Tesla was")
 
 
-def test_lexical_index_ranks_the_right_paragraph_first_and_survives_save_load(
-    tmp_path: Path,
-) -> None:
-    paragraphs, _ = parse_squad(MINI_SQUAD)
-    index = build_lexical_index(paragraphs)
-
-    assert index.size == 3
-    assert index.search("Which NFL team represented the AFC at Super Bowl 50?", k=3)[0][0] == 0
-    assert index.search("Tesla induction motor", k=3)[0][0] == 2
-    assert index.search("xyzzy plugh", k=3) == []
-    assert index.search("the of and", k=3) == [], "stopword-only queries return nothing"
-
-    index.save(tmp_path / "bm25")
-    loaded = LexicalIndex.load(tmp_path / "bm25")
-
-    assert loaded.size == 3
-    assert loaded.search("Santa Clara Levi's Stadium", k=1)[0][0] == 1
-
-
 async def test_build_embeddings_produces_float16_unit_vectors_with_meta() -> None:
     paragraphs, _ = parse_squad(MINI_SQUAD)
     embedder = FakeEmbedder(dimensions=16)
@@ -164,7 +143,7 @@ async def test_build_embeddings_produces_float16_unit_vectors_with_meta() -> Non
     )
 
 
-async def test_run_build_without_embedder_writes_corpus_bm25_and_manifest(tmp_path: Path) -> None:
+async def test_run_build_without_embedder_writes_the_corpus_and_manifest(tmp_path: Path) -> None:
     source = tmp_path / "dev.json"
     source.write_text(json.dumps(MINI_SQUAD), encoding="utf-8")
     paths = CorpusPaths(tmp_path / "data")
@@ -172,7 +151,6 @@ async def test_run_build_without_embedder_writes_corpus_bm25_and_manifest(tmp_pa
     manifest = await run_build(source=str(source), paths=paths, embedder=None)
 
     assert paths.paragraphs.exists() and paths.questions.exists()
-    assert (paths.bm25_dir / "params.index.json").exists()
     assert not paths.embeddings.exists()
     assert manifest.articles == 2
     assert manifest.paragraphs == 3

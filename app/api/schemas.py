@@ -91,11 +91,10 @@ class SourceLocator(BaseModel):
 
 
 class SourceRetrieval(BaseModel):
-    """Why a passage was retrieved: which retriever found it and how it ranked."""
+    """Why a passage was retrieved: its rank and score from each stage."""
 
-    found_by: list[str]
-    bm25_rank: int | None = None
     dense_rank: int | None = None
+    dense_score: float | None = None
     rerank_score: float | None = None
 
 
@@ -139,7 +138,7 @@ class ResponseMeta(BaseModel):
     grounded: bool | None = Field(description="Grounding check verdict; null when not checked.")
     degraded: bool
     degraded_reason: str | None
-    retrieval_mode: Literal["hybrid", "bm25_only"] | None
+    retrieval_mode: Literal["dense_reranked", "dense", "unavailable"] | None
     cached: bool
     notes: list[str]
 

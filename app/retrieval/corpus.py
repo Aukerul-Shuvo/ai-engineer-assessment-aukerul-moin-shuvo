@@ -4,14 +4,13 @@ The corpus lives in ``data/`` as plain, inspectable files so a reviewer can open
 
 * ``paragraphs.jsonl``      one JSON object per paragraph: id, article title, text, Wikipedia URL
 * ``questions.jsonl``       the gold questions, each with the paragraph it was written from
-* ``bm25/``                 the lexical index as saved by bm25s
 * ``embeddings.npy``        dense vectors, one row per paragraph, same order as paragraphs.jsonl
 * ``embeddings.meta.json``  which model produced them and a fingerprint of the paragraphs
 * ``manifest.json``         provenance: source URL, hash, counts, build time
 
-``indexed_text`` is the single definition of what gets indexed: the article title prepended to
-the paragraph. Both the lexical and the dense index use it, so both retrievers see the same
-text. Excerpts shown to users come from the raw ``text`` field, never the indexed form.
+``indexed_text`` is the single definition of what gets embedded: the article title prepended
+to the paragraph, so a passage carries its topic even when its own sentences do not name it.
+Excerpts shown to users come from the raw ``text`` field, never the indexed form.
 """
 
 from __future__ import annotations
@@ -82,6 +81,9 @@ class BuildManifest(BaseModel):
     source_bytes: int
     squad_version: str
     articles: int
+    # Articles in the source file. Differs from ``articles`` when the build kept only the
+    # first few, which is how the corpus is sized to one day of embedding quota.
+    source_articles: int | None = None
     paragraphs: int
     questions: int
     built_at: str
@@ -105,11 +107,6 @@ class CorpusPaths:
         return self.data_dir / "questions.jsonl"
 
     @property
-    def bm25_dir(self) -> Path:
-        """Directory holding the saved bm25s index."""
-        return self.data_dir / "bm25"
-
-    @property
     def embeddings(self) -> Path:
         """Dense vectors as a numpy array."""
         return self.data_dir / "embeddings.npy"
@@ -118,6 +115,16 @@ class CorpusPaths:
     def embeddings_meta(self) -> Path:
         """Model id and fingerprint for the dense vectors."""
         return self.data_dir / "embeddings.meta.json"
+
+    @property
+    def embeddings_partial(self) -> Path:
+        """Vectors embedded so far by a quota-paced or interrupted build. Never committed."""
+        return self.data_dir / "embeddings.partial.npy"
+
+    @property
+    def embeddings_partial_meta(self) -> Path:
+        """Progress record for ``embeddings_partial``: model, dimensions, count, fingerprint."""
+        return self.data_dir / "embeddings.partial.json"
 
     @property
     def manifest(self) -> Path:

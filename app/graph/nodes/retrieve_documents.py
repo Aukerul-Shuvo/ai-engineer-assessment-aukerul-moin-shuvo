@@ -1,6 +1,6 @@
 """retrieve_documents: the RAG branch for one dataset sub-query.
 
-Pipeline, not agent: hybrid search, then one structured grading call over the top passages, then
+Pipeline, not agent: vector search with reranking, then one structured grading call over the top
 at most one query rewrite and second search when the grader says the passages are insufficient.
 Relevant passages become ``Evidence`` carrying the paragraph text, its citation fields and the
 retrieval provenance from the store. If the grader finds nothing relevant, the top few passages
@@ -22,14 +22,14 @@ from app.graph import prompts
 from app.graph.schemas import Evidence, RetrievalGrade, RewrittenQuery
 from app.graph.state import BranchInput
 from app.llm.providers import ChatModels, call_with_failover
-from app.retrieval.store import HybridStore, RetrievedParagraph
+from app.retrieval.store import RetrievedParagraph, VectorStore
 
 log = structlog.get_logger(__name__)
 
 
 def make_retrieve_documents(
     models: ChatModels | None,
-    store: HybridStore | None,
+    store: VectorStore | None,
     *,
     grade_top_k: int,
     evidence_per_sub_query: int,
@@ -40,14 +40,25 @@ def make_retrieve_documents(
     async def retrieve_documents(branch: BranchInput) -> dict[str, Any]:
         sub_query = branch["sub_query"]
         if store is None:
-            return {"notes": [f"{sub_query.id}: the text corpus is not loaded"], "evidence": []}
+            return {
+                "notes": [f"{sub_query.id}: the text corpus is not loaded"],
+                "caveats": ["the text corpus is not available"],
+                "evidence": [],
+            }
 
         result = await store.search(sub_query.text, final_k=grade_top_k)
         hits = list(result.hits)
         providers: list[str] = []
         notes: list[str] = []
-        if result.fallback_reason:
-            notes.append(f"{sub_query.id}: dense retrieval unavailable, used BM25 only")
+        if result.failure_reason:
+            # Semantic search is the only retriever, so there is no corpus evidence
+            # for this sub-query at all. Say so rather than answering from nothing.
+            notes.append(f"{sub_query.id}: corpus search failed ({result.failure_reason})")
+            return {
+                "notes": notes,
+                "caveats": ["the text corpus could not be searched"],
+                "evidence": [],
+            }
 
         if models is None:
             chosen = hits[:evidence_per_sub_query]
@@ -58,6 +69,12 @@ def make_retrieve_documents(
             )
             if rewrote:
                 notes.append(f"{sub_query.id}: query rewritten once")
+            if hits and "grade:none" in providers:
+                # Every provider was unavailable for the grade; the top passages went through
+                # unjudged, and the response says so rather than implying they were checked.
+                notes.append(
+                    f"{sub_query.id}: relevance grading unavailable, kept the top passages ungraded"
+                )
             chosen = chosen[:evidence_per_sub_query]
 
         return {
@@ -71,7 +88,7 @@ def make_retrieve_documents(
 
 async def _grade_with_rewrite(
     models: ChatModels,
-    store: HybridStore,
+    store: VectorStore,
     question: str,
     hits: list[RetrievedParagraph],
     grade_top_k: int,
@@ -149,9 +166,8 @@ def _to_evidence(sub_query_id: str, hit: RetrievedParagraph) -> Evidence:
         excerpt=paragraph.text,
         locator={"file": "data/paragraphs.jsonl", "paragraph_id": paragraph.id},
         retrieval={
-            "found_by": hit.found_by,
-            "bm25_rank": hit.bm25_rank,
             "dense_rank": hit.dense_rank,
+            "dense_score": round(hit.dense_score, 4),
             "rerank_score": hit.rerank_score,
         },
     )

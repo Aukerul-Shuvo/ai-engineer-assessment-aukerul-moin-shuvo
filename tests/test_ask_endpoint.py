@@ -91,7 +91,9 @@ def test_ask_returns_answer_sources_plan_and_meta(app: FastAPI, client: TestClie
     assert source["title"] == "Super Bowl 50"
     assert source["url"] == "https://en.wikipedia.org/wiki/Super_Bowl_50"
     assert source["locator"] == {"file": "data/paragraphs.jsonl", "paragraph_id": SUPER_BOWL}
-    assert source["retrieval"]["found_by"] == ["bm25"], "no embeddings in the test corpus"
+    assert source["retrieval"]["dense_rank"] == 1
+    assert source["retrieval"]["dense_score"] > 0
+    assert source["retrieval"]["rerank_score"] is None, "the reranker is off in tests"
     assert "Denver Broncos" in source["excerpt"]
     assert source["reference"].startswith("SQuAD v1.1 dev")
 
@@ -102,7 +104,7 @@ def test_ask_returns_answer_sources_plan_and_meta(app: FastAPI, client: TestClie
     assert meta["request_id"] == response.headers["x-request-id"]
     assert meta["grounded"] is True
     assert meta["degraded"] is False
-    assert meta["retrieval_mode"] == "bm25_only"
+    assert meta["retrieval_mode"] == "dense"
     assert meta["cached"] is False
     assert {"plan:fake", "grade:fake", "synth:fake", "ground:fake"} <= set(meta["providers"])
     assert meta["latency_ms"] >= 0

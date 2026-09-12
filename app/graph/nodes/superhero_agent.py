@@ -42,6 +42,7 @@ def make_superhero_agent(
         if not tools:
             return {
                 "notes": [f"{sub_query.id}: the superhero source is not configured"],
+                "caveats": ["the superhero source is not configured"],
                 "evidence": [],
             }
         if models is None:
@@ -58,12 +59,22 @@ def make_superhero_agent(
                 config={"recursion_limit": 2 * max_agent_steps + 4},
             )
         except UpstreamUnavailableError as exc:
-            return {"notes": [f"{sub_query.id}: superhero lookup failed ({exc.describe()})"]}
+            return {
+                "notes": [f"{sub_query.id}: superhero lookup failed ({exc.describe()})"],
+                "caveats": ["a superhero lookup did not complete"],
+            }
 
         evidence, errors = evidence_from_messages(sub_query.id, result.get("messages", []))
         notes = [f"{sub_query.id}: {error}" for error in errors]
         log.info("superhero_agent_done", sub_query=sub_query.id, heroes=len(evidence))
-        return {"evidence": evidence, "notes": notes, "providers": [f"agent:{provider}"]}
+        return {
+            "evidence": evidence,
+            "notes": notes,
+            # A tool error here is why part of the question has no evidence, so the reader
+            # sees it too: "No character named 'Von'" explains the gap.
+            "caveats": list(errors),
+            "providers": [f"agent:{provider}"],
+        }
 
     return superhero_agent
 

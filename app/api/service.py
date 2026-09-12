@@ -200,7 +200,9 @@ class AskService:
                 degraded_reason=state.get("degraded_reason"),
                 retrieval_mode=_retrieval_mode(evidence),
                 cached=cached,
-                notes=list(state.get("notes") or []),
+                # Metadata carries the complete record: the operator's notes and the caveats
+                # the reader already saw appended to the answer.
+                notes=list(state.get("notes") or []) + list(state.get("caveats") or []),
             ),
         )
 
@@ -243,14 +245,14 @@ def _source(label: str, item: Evidence) -> Source:
 
 
 def _retrieval_mode(evidence: list[Evidence]) -> str | None:
-    """Hybrid if any dataset hit came from the dense index, BM25-only otherwise, None if none."""
+    """How the corpus passages were ranked, or ``None`` when the corpus was not searched."""
     retrievals = [
         item.retrieval for item in evidence if item.kind == "dataset" and item.retrieval is not None
     ]
     if not retrievals:
         return None
-    dense = any("dense" in retrieval.get("found_by", []) for retrieval in retrievals)
-    return "hybrid" if dense else "bm25_only"
+    reranked = any(retrieval.get("rerank_score") is not None for retrieval in retrievals)
+    return "dense_reranked" if reranked else "dense"
 
 
 def _progress_event(node: str, update: dict[str, Any]) -> dict[str, str] | None:
@@ -273,7 +275,7 @@ def _progress_event(node: str, update: dict[str, Any]) -> dict[str, str] | None:
                 "branch": node,
                 "sub_queries": sorted({item.sub_query_id for item in items}),
                 "count": len(items),
-                "notes": update.get("notes") or [],
+                "notes": (update.get("notes") or []) + (update.get("caveats") or []),
             },
         )
     if node == "resolve_dependencies":

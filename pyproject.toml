@@ -31,13 +31,10 @@ dependencies = [
   "langchain>=1.4",
   "langchain-core>=1.6",
   "langchain-google-genai>=4.4",
-  "langchain-groq>=1.1",
   # Tools over MCP. langchain-mcp-adapters is deliberately absent: its latest release targets
   # mcp 1.x and fails to import against mcp 2.x, so app/graph/mcp_tools.py bridges directly.
   "mcp>=2.1",
   # Retrieval
-  "bm25s>=0.3",
-  "PyStemmer>=2.2",
   "flashrank>=0.2.10",
   "numpy>=2.0",
   # Observability
@@ -58,7 +55,9 @@ dev = [
   "ruff>=0.16",
   "mypy>=2.0",
 ]
-evals = ["ragas>=0.4"]
+# No `evals` extra: RAGAS 0.4 imports langchain_community.chat_models.vertexai, which does not
+# exist in the LangChain 1.x line, so it cannot be installed alongside this stack. The evals
+# package measures grounding and citation precision with the graph's own checks instead.
 
 [tool.setuptools]
 packages = { find = { include = ["app*", "mcp_server*"] } }
@@ -103,13 +102,11 @@ python_version = "3.12"
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
-files = ["app", "scripts", "mcp_server"]
+files = ["app", "scripts", "mcp_server", "evals"]
 
 [[tool.mypy.overrides]]
 module = [
-  "bm25s", "bm25s.*",
   "flashrank", "flashrank.*",
-  "Stemmer",
   "cachetools", "cachetools.*",
   "slowapi", "slowapi.*",
   "prometheus_fastapi_instrumentator", "prometheus_fastapi_instrumentator.*",
@@ -120,6 +117,10 @@ ignore_missing_imports = true
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The tests import their helpers as `tests.fakes`, so the repository root has to be importable.
+# `python -m pytest` adds it; the bare `pytest` console script does not, and the README tells the
+# reader to run the bare one.
+pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "-q --strict-markers"
 markers = [

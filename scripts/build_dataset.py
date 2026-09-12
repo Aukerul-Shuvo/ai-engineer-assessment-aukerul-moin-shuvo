@@ -2,9 +2,10 @@
 
 Usage, from the repository root::
 
-    python -m scripts.build_dataset                     # corpus, BM25 index, embeddings
+    python -m scripts.build_dataset                     # corpus files and dense vectors
     python -m scripts.build_dataset --skip-embeddings   # no model key needed
     python -m scripts.build_dataset --only-embeddings   # add vectors to an existing corpus
+    python -m scripts.build_dataset --articles 48       # the whole dev set, three days of quota
 
 The heavy lifting is in ``app.retrieval.build``; this file only parses arguments, decides
 whether an embedder is available, and reports what was written. The outputs are committed to
@@ -23,7 +24,12 @@ import structlog
 from app.config import get_settings
 from app.llm.embeddings import Embedder, GeminiEmbedder
 from app.observability.logging import configure_logging
-from app.retrieval.build import SQUAD_DEV_URL, run_build, run_embed_only
+from app.retrieval.build import (
+    SQUAD_DEV_URL,
+    EmbeddingQuotaError,
+    run_build,
+    run_embed_only,
+)
 from app.retrieval.corpus import CorpusPaths
 
 log = structlog.get_logger("scripts.build_dataset")
@@ -36,6 +42,12 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("--source", default=SQUAD_DEV_URL, help="URL or path of dev-v1.1.json")
     parser.add_argument("--data-dir", default=None, help="Output directory (default: DATA_DIR)")
     parser.add_argument("--batch-size", type=int, default=100, help="Texts per embedding request")
+    parser.add_argument(
+        "--articles",
+        type=int,
+        default=20,
+        help="Keep only the first N articles in source order (default 20)",
+    )
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--skip-embeddings", action="store_true", help="Build without dense vectors")
     mode.add_argument("--only-embeddings", action="store_true", help="Only (re)build dense vectors")
@@ -62,19 +74,38 @@ async def _main(argv: list[str]) -> int:
     paths = CorpusPaths(settings.data_dir if args.data_dir is None else Path(args.data_dir))
 
     embedder = None if args.skip_embeddings else _make_embedder()
-    if args.only_embeddings:
-        if embedder is None:
-            log.error("no_embedder", hint="set GEMINI_API_KEY to build embeddings")
-            return 2
-        manifest = await run_embed_only(paths=paths, embedder=embedder, batch_size=args.batch_size)
-    else:
-        if embedder is None and not args.skip_embeddings:
-            log.warning(
-                "no_embedder", note="GEMINI_API_KEY not set; building without dense vectors"
+    pace = settings.embed_texts_per_minute or None
+    try:
+        if args.only_embeddings:
+            if embedder is None:
+                log.error("no_embedder", hint="set GEMINI_API_KEY to build embeddings")
+                return 2
+            manifest = await run_embed_only(
+                paths=paths, embedder=embedder, batch_size=args.batch_size, texts_per_minute=pace
             )
-        manifest = await run_build(
-            source=args.source, paths=paths, embedder=embedder, batch_size=args.batch_size
+        else:
+            if embedder is None and not args.skip_embeddings:
+                log.warning(
+                    "no_embedder", note="GEMINI_API_KEY not set; building without dense vectors"
+                )
+            manifest = await run_build(
+                source=args.source,
+                paths=paths,
+                embedder=embedder,
+                batch_size=args.batch_size,
+                texts_per_minute=pace,
+                max_articles=args.articles,
+            )
+    except EmbeddingQuotaError as exc:
+        # The free tier allows 1,000 embedded texts per day. Progress is on disk; the same
+        # command continues from there once the quota resets.
+        log.error(
+            "embedding_quota_exhausted",
+            done=exc.done,
+            total=exc.total,
+            hint="rerun the same command after the daily quota resets; it resumes",
         )
+        return 3
 
     log.info(
         "build_complete",

@@ -87,3 +87,8 @@ def configure_logging(
     # so those lines would leak it. Warnings and errors still come through.
     for name in ("httpx", "httpcore"):
         logging.getLogger(name).setLevel(logging.WARNING)
+
+    # google-genai warns on every structured-output call that automatic function calling is not
+    # recommended on this code path, and logs each of its own retries. The provider layer
+    # reports a failure once, under the request id. Errors still come through.
+    logging.getLogger("google_genai").setLevel(logging.ERROR)

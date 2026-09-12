@@ -39,7 +39,7 @@ from app.graph.nodes.synthesize import make_synthesize
 from app.graph.schemas import SubQuery
 from app.graph.state import GraphState
 from app.llm.providers import ChatModels
-from app.retrieval.store import HybridStore
+from app.retrieval.store import VectorStore
 
 MAX_WAVES = 2
 
@@ -49,7 +49,7 @@ class GraphDependencies:
     """Everything the graph needs, built once at startup."""
 
     models: ChatModels | None
-    store: HybridStore | None
+    store: VectorStore | None
     superhero_tools: Sequence[BaseTool] = field(default_factory=list)
     document_titles: Sequence[str] = field(default_factory=list)
     max_agent_steps: int = 4

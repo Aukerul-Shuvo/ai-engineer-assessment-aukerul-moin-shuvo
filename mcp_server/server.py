@@ -39,7 +39,7 @@ from app.resources import (
     build_superhero_client,
     load_store,
 )
-from app.retrieval.store import HybridStore
+from app.retrieval.store import VectorStore
 from app.tools.common import ToolError
 from app.tools.documents import (
     DocumentCatalog,
@@ -61,7 +61,7 @@ SERVER_NAME = "superhero-knowledge"
 
 _INSTRUCTIONS = (
     "Two knowledge sources. (1) A corpus of English Wikipedia paragraphs from the SQuAD dev "
-    "set, covering 48 articles such as Super Bowl 50, Nikola Tesla, Oxygen and the Amazon "
+    "set, covering 20 articles such as Super Bowl 50, Nikola Tesla, Oxygen and the Amazon "
     "rainforest: call list_documents to see the topics and search_documents to retrieve "
     "passages. (2) The Superhero API: call search_superheroes with a character name; several "
     "characters may share a name, so use get_superhero with an id for one character's full "
@@ -73,7 +73,7 @@ _OPEN_WORLD = ToolAnnotations(read_only_hint=True, idempotent_hint=True, open_wo
 
 
 def create_server(
-    *, superhero: SuperheroClient | None, store: HybridStore | None, version: str = __version__
+    *, superhero: SuperheroClient | None, store: VectorStore | None, version: str = __version__
 ) -> MCPServer:
     """Register the four tools over the given dependencies."""
     server = MCPServer(name=SERVER_NAME, version=version, instructions=_INSTRUCTIONS)
@@ -108,8 +108,8 @@ def create_server(
     ) -> DocumentSearchResult | ToolError:
         """Retrieve the most relevant corpus paragraphs for a question.
 
-        Hybrid lexical plus semantic search with cross-encoder reranking. Each hit carries the
-        paragraph text, its article title and URL, and which retriever found it.
+        Semantic search over the corpus vectors, reranked by a cross-encoder. Each hit
+        carries the paragraph text, its article title and URL, and where it ranked.
         """
         if store is None:
             return _store_unavailable()
@@ -150,7 +150,7 @@ async def build_server_from_settings(settings: Settings) -> MCPServer:
         "mcp_server_ready",
         superhero=superhero is not None,
         corpus=store is not None,
-        dense_retrieval=bool(store and store.dense_enabled),
+        searchable=bool(store and store.searchable),
     )
     return create_server(superhero=superhero, store=store)
 
